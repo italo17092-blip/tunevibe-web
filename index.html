@@ -50,12 +50,26 @@
       user-select: text;
       -webkit-user-select: text;
     }
+    .ios-safe-header {
+      padding-top: max(calc(env(safe-area-inset-top, 0px) + 12px), 16px);
+    }
+    .ios-safe-modal-top {
+      padding-top: max(calc(env(safe-area-inset-top, 0px) + 22px), 52px);
+    }
+    @media all and (display-mode: standalone) {
+      .ios-safe-header {
+        padding-top: max(calc(env(safe-area-inset-top, 44px) + 10px), 48px);
+      }
+      .ios-safe-modal-top {
+        padding-top: max(calc(env(safe-area-inset-top, 48px) + 16px), 58px);
+      }
+    }
   </style>
 </head>
 <body class="bg-[#0b0c10] text-white min-h-screen flex flex-col">
 
   <!-- TOP BAR -->
-  <header class="sticky top-0 z-30 bg-[#0b0c10]/95 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
+  <header class="ios-safe-header sticky top-0 z-30 bg-[#0b0c10]/95 backdrop-blur-md border-b border-white/10 px-4 pb-3 flex items-center justify-between">
     <div class="flex items-center gap-2.5">
       <div class="w-8 h-8 rounded-full bg-[#ff0033] flex items-center justify-center shadow-lg shadow-[#ff0033]/30">
         <svg class="w-4 h-4 text-white fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -384,33 +398,47 @@
     </div>
   </div>
 
-  <!-- MODAL: PLAYER EM TELA CHEIA (COM DUPLO TOQUE +/-10S, SWIPE, LETRA COMPLETA E DUPLAS SEPARADAS!) -->
+  <!-- MODAL: PLAYER EM TELA CHEIA (COM DUPLO TOQUE +/-10S, SWIPE, FAIXA COMPLETA E DUPLAS SEPARADAS!) -->
   <div id="modalFullPlayer" class="hidden fixed inset-0 z-50 bg-[#0d0f14] overflow-y-auto">
-    <div class="max-w-xl mx-auto px-5 py-4 pb-16">
-      <!-- Topo do Player -->
-      <div class="flex items-center justify-between mb-3">
-        <button id="btnCloseFullPlayer" type="button" class="p-2 rounded-full bg-white/10 hover:bg-white/20">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+    <!-- Barra fixa no topo com área segura generosa para o iPhone em Tela Cheia -->
+    <div id="headerFullPlayerDragClose" class="ios-safe-modal-top sticky top-0 z-40 bg-[#0d0f14]/95 backdrop-blur-md px-4 pb-3 border-b border-white/10">
+      <div class="w-12 h-1.5 bg-white/25 rounded-full mx-auto mb-3"></div>
+      <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
+        <button id="btnCloseFullPlayer" type="button" class="min-h-[46px] px-4 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 flex items-center gap-1.5 font-extrabold text-xs text-white shadow-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          <span>Minimizar</span>
         </button>
-        <div class="flex items-center gap-2">
-          <span id="badgeFullPlatform" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Spotify Hi-Fi</span>
-          <button id="btnFullDjToggle" type="button" class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/40">
+        <div class="flex items-center gap-1.5">
+          <span id="badgeFullPlatform" class="text-[10px] font-bold uppercase px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Faixa Completa</span>
+          <button id="btnFullDjToggle" type="button" class="px-2.5 py-1 rounded-lg text-[10px] font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/40">
             🎧 DJ 3s ON
           </button>
         </div>
-        <button id="btnFullLike" type="button" class="p-2 text-xl">🤍</button>
+        <button id="btnFullLike" type="button" class="min-h-[46px] min-w-[46px] rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-xl">🤍</button>
+      </div>
+    </div>
+
+    <div class="max-w-xl mx-auto px-5 pt-3 pb-20">
+      <!-- Seletor Capa vs Clipe/Áudio Completo -->
+      <div class="flex items-center justify-center gap-2 mb-2">
+        <button id="btnModeCoverView" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-[#ff0033] text-white">🎵 Capa Oficial</button>
+        <button id="btnModeVideoView" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-white/75">🎬 Clipe / Show</button>
       </div>
 
-      <!-- Capa com Gesto Swipe (Passar Música) + Duplo Toque Esq/Dir (-10s / +10s) -->
-      <div id="zoneFullCoverGesture" class="relative flex flex-col items-center select-none my-2 cursor-pointer">
-        <div class="relative w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl border border-white/15">
-          <img id="imgFullCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80" alt="Capa" class="w-full h-full object-cover" />
-          <div id="badgeDoubleTapSeek" class="hidden absolute inset-0 bg-black/60 flex items-center justify-center">
+      <!-- Capa com Gesto Swipe (Passar Música) + Duplo Toque Esq/Dir (-10s / +10s) + Player Completo Integrado -->
+      <div id="zoneFullCoverGesture" class="relative flex flex-col items-center select-none my-1 cursor-pointer">
+        <div class="relative w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-black">
+          <img id="imgFullCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80" alt="Capa" class="w-full h-full object-cover relative z-10" />
+          <!-- Container do Player Completo YouTube IFrame (fica atrás da capa ou visível no modo Clipe) -->
+          <div id="boxYtFullWrapper" class="absolute inset-0 z-0 opacity-0 pointer-events-none">
+            <div id="ytFullTrackMount"></div>
+          </div>
+          <div id="badgeDoubleTapSeek" class="hidden absolute inset-0 z-20 bg-black/60 flex items-center justify-center">
             <span id="txtDoubleTapSeek" class="px-4 py-2 rounded-full bg-black/90 border border-emerald-400 text-emerald-400 font-extrabold text-lg">⏩ +10s</span>
           </div>
         </div>
-        <p class="text-[11px] text-white/45 mt-2 text-center">
-          ⇄ Arraste a capa para mudar de música • 2x toque esq/dir: -10s / +10s
+        <p id="txtEngineStatusHint" class="text-[11px] text-emerald-400/90 font-semibold mt-2 text-center">
+          ⚡ Motor Música Completa Ativo • ⇄ Arraste a capa p/ mudar • 2x toque: -10s/+10s
         </p>
       </div>
 
@@ -444,13 +472,17 @@
         <button id="btnFullFwd10" type="button" class="p-2.5 rounded-full bg-white/5 hover:bg-white/15 text-xs font-bold text-white/80" title="Avançar 10s">10s ⏩</button>
       </div>
 
-      <!-- Player YouTube / Vídeo Completa Opcional (Para faixas completas além do Stream Rápido) -->
-      <div class="flex items-center justify-center gap-2 mb-5">
-        <button id="btnOpenAddToPlaylistFromPlayer" type="button" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1">
+      <!-- Barra Rápida ao Alcance do Polegar (Minimizar + Adicionar à Playlist + Alternar Fonte) -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mb-5">
+        <button id="btnBottomMinimizePlayer" type="button" class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-xs font-bold flex items-center gap-1">
+          <span>⌄</span>
+          <span>Voltar à Lista</span>
+        </button>
+        <button id="btnOpenAddToPlaylistFromPlayer" type="button" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1">
           <span>➕</span>
           <span>Adicionar à Playlist</span>
         </button>
-        <button id="btnSearchYoutubeFullClip" type="button" class="px-3 py-1.5 rounded-xl bg-red-600/25 hover:bg-red-600/35 border border-red-500/40 text-xs font-semibold text-red-300 flex items-center gap-1">
+        <button id="btnSearchYoutubeFullClip" type="button" class="px-3.5 py-2 rounded-xl bg-red-600/25 hover:bg-red-600/35 border border-red-500/40 text-xs font-semibold text-red-300 flex items-center gap-1">
           <span>🎬</span>
           <span>Abrir Clipe / Faixa no YouTube</span>
         </button>
@@ -699,13 +731,218 @@
       pendingSongForPlaylist: null
     };
 
-    // Dual Audio Players para Crossfade DJ 3s no iPhone / Safari
+    // Dual Audio Players + Motor YouTube IFrame API Completo (Toca a música inteira 4:30+ no iPhone e Web!)
     const playerA = new Audio();
     const playerB = new Audio();
     playerA.preload = 'auto';
     playerB.preload = 'auto';
     let activeAudio = playerA;
     let standbyAudio = playerB;
+
+    let ytPlayer = null;
+    let ytApiReady = false;
+    let usingYtEngine = false;
+    let ytProgressTimer = null;
+    let showVideoClipMode = false;
+    const videoIdCache = safeGetStorage('tunevibe_vid_cache_v1', {});
+
+    function parseDurationToSec(durStr) {
+      if (!durStr || typeof durStr !== 'string') return 210;
+      const parts = durStr.split(':').map(Number);
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        return parts[0] * 60 + parts[1];
+      }
+      return 210;
+    }
+
+    // Carrega a API Oficial do YouTube IFrame para tocar faixas completas sem limite de 30s
+    (function loadYoutubeIframeApi() {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScript = document.getElementsByTagName('script')[0];
+      if (firstScript && firstScript.parentNode) {
+        firstScript.parentNode.insertBefore(tag, firstScript);
+      } else {
+        document.head.appendChild(tag);
+      }
+    })();
+
+    window.onYouTubeIframeAPIReady = function() {
+      try {
+        ytPlayer = new YT.Player('ytFullTrackMount', {
+          width: '288',
+          height: '288',
+          playerVars: {
+            autoplay: 1,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            rel: 0
+          },
+          events: {
+            onReady: () => {
+              ytApiReady = true;
+            },
+            onStateChange: (ev) => {
+              if (!usingYtEngine) return;
+              // YT.PlayerState.PLAYING === 1, PAUSED === 2, ENDED === 0
+              if (ev.data === 1) {
+                state.isPlaying = true;
+                try { activeAudio.pause(); } catch (_) {}
+                updatePlayerUi();
+              } else if (ev.data === 2) {
+                state.isPlaying = false;
+                updatePlayerUi();
+              } else if (ev.data === 0) {
+                playNextTrack();
+              }
+            },
+            onError: () => {
+              // Se o vídeo tiver restrição de embed, usa o stream direto de áudio
+              if (usingYtEngine && state.currentSong) {
+                fallbackToDirectAudio(state.currentSong);
+              }
+            }
+          }
+        });
+      } catch (_) {}
+    };
+
+    // Resolve o videoId exato da música completa no YouTube (em ~300ms) e/ou stream completo Piped
+    async function resolveFullTrackSource(song) {
+      const cacheKey = `${song.title.toLowerCase()}|${song.artist.toLowerCase()}`;
+
+      const query = `${song.title} ${song.artist} oficial`;
+
+      let foundVid = videoIdCache[cacheKey] || null;
+
+      // 1. Tenta Piped APIs públicas
+      const pipedDomains = ['api.piped.private.coffee', 'pipedapi.kavin.rocks'];
+      if (!foundVid) {
+        for (const dom of pipedDomains) {
+          try {
+            const res = await fetch(`https://${dom}/search?q=${encodeURIComponent(query)}&filter=music_songs`);
+            if (res.ok) {
+              const data = await res.json();
+              const items = data.items || [];
+              if (items.length) {
+                const urlStr = items[0].url || '';
+                const m = urlStr.match(/v=([a-zA-Z0-9_-]{11})/);
+                if (m && m[1]) {
+                  foundVid = m[1];
+                  break;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 2. Busca na página de resultados do YouTube via proxies CORS públicos
+      if (!foundVid) {
+        const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+        const proxyEndpoints = [
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(ytSearchUrl)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(ytSearchUrl)}`
+        ];
+        for (const pUrl of proxyEndpoints) {
+          try {
+            const res = await fetch(pUrl);
+            if (res.ok) {
+              const htmlText = await res.text();
+              const match = htmlText.match(/"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/);
+              if (match && match[1]) {
+                foundVid = match[1];
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 3. Fallback Invidious APIs
+      const invDomains = ['inv.tux.pizza', 'invidious.nerdvpn.de'];
+      if (!foundVid) {
+        for (const dom of invDomains) {
+          try {
+            const res = await fetch(`https://${dom}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+            if (res.ok) {
+              const list = await res.json();
+              if (Array.isArray(list) && list.length && list[0].videoId) {
+                foundVid = list[0].videoId;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (foundVid) {
+        videoIdCache[cacheKey] = foundVid;
+        safeSetStorage('tunevibe_vid_cache_v1', videoIdCache);
+
+        // Tenta extrair o stream direto de áudio M4A completo (funciona com a tela do iPhone bloqueada!)
+        for (const dom of pipedDomains) {
+          try {
+            const sRes = await fetch(`https://${dom}/streams/${foundVid}`);
+            if (sRes.ok) {
+              const sData = await sRes.json();
+              const streams = sData.audioStreams || [];
+              const m4a = streams.find(s => (s.mimeType || '').includes('mp4') || (s.format || '').includes('M4A')) || streams[0];
+              if (m4a && m4a.url) {
+                return { videoId: foundVid, directAudioUrl: m4a.url };
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      return { videoId: foundVid, directAudioUrl: null };
+    }
+
+    function fallbackToDirectAudio(song) {
+      usingYtEngine = false;
+      clearInterval(ytProgressTimer);
+      try {
+        if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
+      } catch (_) {}
+      if (song && song.streamUrl) {
+        activeAudio.src = song.streamUrl;
+        activeAudio.volume = 1.0;
+        activeAudio.play().then(() => {
+          state.isPlaying = true;
+          updatePlayerUi();
+        }).catch(() => {});
+      }
+    }
+
+    function startYtProgressPoller() {
+      clearInterval(ytProgressTimer);
+      ytProgressTimer = setInterval(() => {
+        if (!usingYtEngine || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+        const cur = ytPlayer.getCurrentTime() || 0;
+        const rawDur = ytPlayer.getDuration() || 0;
+        const fallbackDur = state.currentSong ? parseDurationToSec(state.currentSong.duration) : 210;
+        const dur = rawDur > 0 ? rawDur : fallbackDur;
+
+        const seekEl = document.getElementById('rngFullSeek');
+        if (seekEl && dur > 0) {
+          seekEl.max = Math.floor(dur);
+          seekEl.value = Math.floor(cur);
+        }
+        document.getElementById('txtFullCurTime').textContent = formatSec(cur);
+        document.getElementById('txtFullTotTime').textContent = formatSec(dur);
+
+        // Gatilho DJ 3s Automático na música completa!
+        if (state.djAutomix && !state.djCrossfadeTriggered && dur > 25 && cur > 5 && (dur - cur) <= 3.4 && (dur - cur) > 0.2) {
+          state.djCrossfadeTriggered = true;
+          showToast('🎧 DJ 3s Mix: entrando próxima música...');
+          playNextTrack();
+        }
+      }, 400);
+    }
 
     // Utilitário de Armazenamento Seguro (Compatível com Safari Privado e Canvas)
     function safeGetStorage(key, fallback) {
@@ -967,10 +1204,22 @@
       playSongObject(state.queue[state.queueIndex]);
     }
 
-    function playSongObject(song, viaCrossfade = false) {
+    async function playSongObject(song, viaCrossfade = false) {
       if (!song) return;
       state.currentSong = song;
       state.djCrossfadeTriggered = false;
+
+      // Mostra imediatamente a duração real completa da música (ex: 4:30) no visor!
+      const expectedSec = parseDurationToSec(song.duration);
+      document.getElementById('txtFullCurTime').textContent = '0:00';
+      document.getElementById('txtFullTotTime').textContent = song.duration && song.duration.includes(':')
+        ? song.duration
+        : formatSec(expectedSec);
+      const seekEl = document.getElementById('rngFullSeek');
+      if (seekEl) {
+        seekEl.max = expectedSec;
+        seekEl.value = 0;
+      }
 
       // Registra no histórico recente
       state.recentlyPlayed = [
@@ -979,27 +1228,85 @@
       ].slice(0, 18);
       saveAllLocalData();
       renderRecentlyPlayed();
+      updateMediaSessionMetadata(song);
+      updatePlayerUi();
+      loadSongLyricsAndExtras(song);
 
-      if (!viaCrossfade) {
-        try {
-          standbyAudio.pause();
-        } catch (_) {}
+      // Se for uma faixa adicionada direto do Google Drive, toca o arquivo completo direto no activeAudio!
+      if (song.platform === 'Google Drive' || (song.streamUrl && song.streamUrl.includes('docs.google.com'))) {
+        usingYtEngine = false;
+        clearInterval(ytProgressTimer);
+        try { if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo(); } catch (_) {}
         activeAudio.src = song.streamUrl;
         activeAudio.volume = 1.0;
         activeAudio.play().then(() => {
           state.isPlaying = true;
           updatePlayerUi();
-        }).catch(() => {
-          state.isPlaying = false;
-          updatePlayerUi();
-        });
+        }).catch(() => {});
+        return;
       }
 
-      // Pré-carrega a próxima música no standbyAudio para troca instantânea e DJ 3s!
+      // Busca o videoId da faixa completa no YouTube para tocar a música inteira (4:30+)!
+      const hintEl = document.getElementById('txtEngineStatusHint');
+      if (hintEl) hintEl.textContent = '⚡ Carregando faixa completa (' + (song.duration || 'Completa') + ')...';
+
+      const resolved = await resolveFullTrackSource(song);
+      if (state.currentSong && state.currentSong.id !== song.id) return;
+
+      if (resolved.directAudioUrl) {
+        usingYtEngine = false;
+        clearInterval(ytProgressTimer);
+        try { if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo(); } catch (_) {}
+        activeAudio.src = resolved.directAudioUrl;
+        activeAudio.volume = 1.0;
+        activeAudio.play().then(() => {
+          state.isPlaying = true;
+          if (hintEl) {
+            hintEl.textContent = '⚡ Áudio Completo Hi-Fi (' + (song.duration || 'Completa') + ') • Toca na Tela Bloqueada!';
+          }
+          updatePlayerUi();
+        }).catch(() => {
+          if (resolved.videoId && ytApiReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+            usingYtEngine = true;
+            ytPlayer.loadVideoById({ videoId: resolved.videoId, startSeconds: 0 });
+            ytPlayer.setVolume(100);
+            state.isPlaying = true;
+            startYtProgressPoller();
+            updatePlayerUi();
+          }
+        });
+        return;
+      }
+
+      if (resolved.videoId && ytApiReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        try {
+          activeAudio.pause();
+          standbyAudio.pause();
+        } catch (_) {}
+        usingYtEngine = true;
+        ytPlayer.loadVideoById({ videoId: resolved.videoId, startSeconds: 0 });
+        ytPlayer.setVolume(100);
+        state.isPlaying = true;
+        startYtProgressPoller();
+        if (hintEl) {
+          hintEl.textContent = '⚡ Tocando Música Completa (' + (song.duration || 'Oficial') + ') • ⇄ Arraste p/ mudar';
+        }
+        updatePlayerUi();
+        // Já pré-resolve o videoId da próxima música da fila para troca instantânea!
+        if (state.queueIndex + 1 < state.queue.length) {
+          resolveFullTrackSource(state.queue[state.queueIndex + 1]);
+        }
+        return;
+      }
+
+      // Fallback para stream direto se o YouTube estiver bloqueado na rede
+      if (hintEl) {
+        hintEl.textContent = '⇄ Arraste a capa para mudar de música • 2x toque esq/dir: -10s / +10s';
+      }
+      if (!viaCrossfade) {
+        fallbackToDirectAudio(song);
+      }
       preloadNextInQueue();
-      updateMediaSessionMetadata(song);
-      updatePlayerUi();
-      loadSongLyricsAndExtras(song);
     }
 
     function preloadNextInQueue() {
@@ -1110,6 +1417,17 @@
         if (chart.length) playFromList(chart, 0);
         return;
       }
+      if (usingYtEngine && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+        if (state.isPlaying) {
+          ytPlayer.pauseVideo();
+          state.isPlaying = false;
+        } else {
+          ytPlayer.playVideo();
+          state.isPlaying = true;
+        }
+        updatePlayerUi();
+        return;
+      }
       if (state.isPlaying) {
         activeAudio.pause();
       } else {
@@ -1129,8 +1447,12 @@
     }
 
     function playPrevTrack() {
-      if (activeAudio.currentTime > 3 || state.queueIndex <= 0) {
-        activeAudio.currentTime = 0;
+      const curTime = usingYtEngine && ytPlayer && typeof ytPlayer.getCurrentTime === 'function'
+        ? (ytPlayer.getCurrentTime() || 0)
+        : (activeAudio.currentTime || 0);
+      if (curTime > 4 || state.queueIndex <= 0) {
+        if (usingYtEngine && ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(0, true);
+        else activeAudio.currentTime = 0;
         return;
       }
       state.queueIndex--;
@@ -1139,10 +1461,17 @@
 
     function seekByDelta(deltaSec) {
       if (!state.currentSong) return;
-      const dur = activeAudio.duration || 30;
-      const target = Math.max(0, Math.min(dur, (activeAudio.currentTime || 0) + deltaSec));
       state.djCrossfadeTriggered = false;
-      activeAudio.currentTime = target;
+      if (usingYtEngine && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+        const cur = ytPlayer.getCurrentTime() || 0;
+        const dur = ytPlayer.getDuration() || parseDurationToSec(state.currentSong.duration);
+        const target = Math.max(0, Math.min(dur, cur + deltaSec));
+        ytPlayer.seekTo(target, true);
+      } else {
+        const dur = activeAudio.duration || 30;
+        const target = Math.max(0, Math.min(dur, (activeAudio.currentTime || 0) + deltaSec));
+        activeAudio.currentTime = target;
+      }
 
       const badge = document.getElementById('badgeDoubleTapSeek');
       const txt = document.getElementById('txtDoubleTapSeek');
@@ -1957,8 +2286,53 @@
 
       document.getElementById('rngFullSeek').addEventListener('input', e => {
         state.djCrossfadeTriggered = false;
-        activeAudio.currentTime = Number(e.target.value);
+        const val = Number(e.target.value);
+        if (usingYtEngine && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+          ytPlayer.seekTo(val, true);
+        } else {
+          activeAudio.currentTime = val;
+        }
       });
+
+      // Botão secundário "Voltar à Lista" ao alcance do polegar + Gesto de arrastar o topo para baixo para fechar
+      document.getElementById('btnBottomMinimizePlayer').addEventListener('click', () => {
+        document.getElementById('modalFullPlayer').classList.add('hidden');
+      });
+
+      let dragTopStartY = 0;
+      const topDragBar = document.getElementById('headerFullPlayerDragClose');
+      topDragBar.addEventListener('touchstart', e => {
+        if (e.touches.length) dragTopStartY = e.touches[0].clientY;
+      }, { passive: true });
+      topDragBar.addEventListener('touchend', e => {
+        if (e.changedTouches.length && (e.changedTouches[0].clientY - dragTopStartY) > 42) {
+          document.getElementById('modalFullPlayer').classList.add('hidden');
+        }
+      }, { passive: true });
+
+      // Alternar entre Capa Oficial e Vídeo/Show Ao Vivo dentro do próprio player
+      const setCoverOrVideoMode = (videoMode) => {
+        showVideoClipMode = videoMode;
+        const imgEl = document.getElementById('imgFullCover');
+        const ytWrap = document.getElementById('boxYtFullWrapper');
+        const btnCov = document.getElementById('btnModeCoverView');
+        const btnVid = document.getElementById('btnModeVideoView');
+        if (videoMode) {
+          imgEl.classList.add('opacity-0', 'pointer-events-none');
+          ytWrap.classList.remove('opacity-0', 'pointer-events-none');
+          ytWrap.classList.add('z-20');
+          btnVid.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-[#ff0033] text-white';
+          btnCov.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-white/75';
+        } else {
+          imgEl.classList.remove('opacity-0', 'pointer-events-none');
+          ytWrap.classList.add('opacity-0', 'pointer-events-none');
+          ytWrap.classList.remove('z-20');
+          btnCov.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-[#ff0033] text-white';
+          btnVid.className = 'px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-white/75';
+        }
+      };
+      document.getElementById('btnModeCoverView').addEventListener('click', () => setCoverOrVideoMode(false));
+      document.getElementById('btnModeVideoView').addEventListener('click', () => setCoverOrVideoMode(true));
 
       // Gesto na Capa da Tela Cheia: Swipe Horizontal (Passar Música) + Duplo Toque Esq/Dir (-10s / +10s)
       const coverZone = document.getElementById('zoneFullCoverGesture');
@@ -2011,8 +2385,8 @@
       });
       document.getElementById('btnSearchYoutubeFullClip').addEventListener('click', () => {
         if (!state.currentSong) return;
-        const q = encodeURIComponent(`${state.currentSong.title} ${state.currentSong.artist}`);
-        window.open(`https://music.youtube.com/search?q=${q}`, '_blank', 'noopener');
+        showToast('⚡ Recarregando faixa completa...');
+        playSongObject(state.currentSong);
       });
 
       // Modal Criar Playlist
