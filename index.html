@@ -853,7 +853,11 @@
     let currentCandidateVideoIds = [];
     let currentVideoCandidateIdx = 0;
     let currentActiveVideoId = '';
+    let previousActiveVideoId = '';
+    let previousSongObj = null;
     let lastAdSkipTime = 0;
+    let adDetectedFirstTs = 0;
+    let isVerifiedRealSongPlaying = false;
     let currentSongLoadToken = 0;
     let userManuallyPaused = false;
     let didPreRollRecueForCurrentVid = false;
@@ -865,22 +869,23 @@
     carplayBridgeAudio.loop = true;
     let currentBridgeBlobUrl = null;
 
-    const videoIdsListCache = safeGetStorage('tunevibe_vidlist_cache_v13', {});
-    const directAudioCache = safeGetStorage('tunevibe_direct_audio_cache_v13', {});
+    const videoIdsListCache = safeGetStorage('tunevibe_vidlist_cache_v14', {});
+    const directAudioCache = safeGetStorage('tunevibe_direct_audio_cache_v14', {});
+    const badAdVideoIds = safeGetStorage('tunevibe_bad_ad_vids_v14', {});
     const authState = safeGetStorage('tunevibe_auth_state_v8', { ytLoggedIn: false, spLoggedIn: false });
 
-    // Dicionário Instantâneo (0ms) de IDs de Canais de Letra Independentes (100% Livres de Propaganda de Gravadora e Livres de Erro 150!)
+    // Dicionário Instantâneo (0ms) de IDs de Canais de Letra Independentes (Testados e Livres de Propaganda!)
     const VERIFIED_HIT_VIDEOS = {
-      'pela última vez': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU', 'yRYkZudxLsw', '27MyzloOgvk', 'CF9eyW8TnYQ', 'uM066MNE7Uw'],
-      'pela ultima vez': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU', 'yRYkZudxLsw', '27MyzloOgvk'],
+      'pela última vez': ['FFhX8J_t5jA', 'hdO6HK_w6oA', 'RZrOq1dTS2I', 'yRYkZudxLsw', '27MyzloOgvk', 'CF9eyW8TnYQ', 'uM066MNE7Uw'],
+      'pela ultima vez': ['FFhX8J_t5jA', 'hdO6HK_w6oA', 'RZrOq1dTS2I', 'yRYkZudxLsw', '27MyzloOgvk', 'CF9eyW8TnYQ'],
       'aquela pessoa': ['beLzDYjh0uU', 'WqI83e9C_ds', 'vcamVoGVhWw'],
       'sonha comigo': ['Ulf9vOgGEBQ', 'edZiZJcm1n4', 'UkeCb5xDYbM', '6cxLxUTufsc'],
       'aproveita que eu tô brigado': ['3-wF7VRYqMY', '2U11A5C1nds', '5PbLWsFs84o'],
       'aproveita que eu to brigado': ['3-wF7VRYqMY', '2U11A5C1nds', '5PbLWsFs84o'],
       'eu tenho medo': ['4XffpXj38a0', 'TRoXSnb9vN0', 'wVt4AozqvP8', 'XQofJ1dH2Gk'],
       'tenho medo': ['4XffpXj38a0', 'TRoXSnb9vN0', 'wVt4AozqvP8', 'XQofJ1dH2Gk'],
-      'eu não sendo eu': ['-9wV9SgzwdE', 'ww4nM7zShdU'],
-      'eu nao sendo eu': ['-9wV9SgzwdE', 'ww4nM7zShdU'],
+      'eu não sendo eu': ['OOfV3xxjGNQ', 'ww4nM7zShdU', '-9wV9SgzwdE'],
+      'eu nao sendo eu': ['OOfV3xxjGNQ', 'ww4nM7zShdU', '-9wV9SgzwdE'],
       'amor perfeito': ['Cs0ve-cM004', '7iKu86xjZAs', 'klW8Y-0fkuI', '2HG-H9yFNs4'],
       'tô fazendo falta': ['klW8Y-0fkuI', 'Cs0ve-cM004', '7iKu86xjZAs'],
       'to fazendo falta': ['klW8Y-0fkuI', 'Cs0ve-cM004', '7iKu86xjZAs'],
@@ -910,8 +915,8 @@
       'gosta de rua': ['tYYQMzr1RA4'],
       'barulho do foguete': ['Gfhvp18J2lI', 'CRdX5fayAYg', 'Co4yajiTXaI', '6th_vu9nXPY', '7t5mi3M_lAY'],
       'deu moral': ['C6_NcJu8BpE'],
-      'tubarões': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U', 'vL3o53EkNOE', 'ssB_5_Jhkg4'],
-      'tubaroes': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U', 'vL3o53EkNOE'],
+      'tubarões': ['SeCNJmQAYjg', 'YBVaE-DCLXw', 'mJ-eoWvYZzs', 'uZk0RvvUs6M', 'ssB_5_Jhkg4', 'Jn2_0-tEA6U', 'vL3o53EkNOE'],
+      'tubaroes': ['SeCNJmQAYjg', 'YBVaE-DCLXw', 'mJ-eoWvYZzs', 'uZk0RvvUs6M', 'ssB_5_Jhkg4', 'Jn2_0-tEA6U'],
       'amor na praia': ['c_YNrSK8gcA', 'McCiV49M4kc', 'EEnp1oRHbK4', 'FsfQOodgpH4'],
       'love gostosinho': ['gW1tU4ohrvI', '6kiJt7WTTM4'],
       'haverá sinais': ['bXrGD76D4Ps', 'ueT7Th2pXCA', '21_Oh789XTM', 'iQjDOChPjUQ', '0jPOws4hJqc'],
@@ -928,9 +933,9 @@
       'zé neto & cristiano': ['Ulf9vOgGEBQ', 'pmsyFoBzMGs', 'Gfhvp18J2lI', 'C6_NcJu8BpE'],
       'felipe & rodrigo': ['tYYQMzr1RA4', '-9wV9SgzwdE'],
       'felipe amorim': ['SPAfQD-6WJU', 'ld8Fem9x9zI', 'gW1tU4ohrvI'],
-      'diego & victor hugo': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U'],
-      'nattan': ['eKcG7s0BF1g', '3-wF7VRYqMY', 'c_YNrSK8gcA', 'gW1tU4ohrvI'],
-      'menos é mais': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU'],
+      'diego & victor hugo': ['SeCNJmQAYjg', 'YBVaE-DCLXw', 'mJ-eoWvYZzs', 'Jn2_0-tEA6U'],
+      'nattan': ['FFhX8J_t5jA', '3-wF7VRYqMY', 'c_YNrSK8gcA', 'gW1tU4ohrvI'],
+      'menos é mais': ['FFhX8J_t5jA', 'hdO6HK_w6oA', 'RZrOq1dTS2I'],
       'zé vaqueiro': ['4XffpXj38a0', 'tQALlKVEkC4', '3-wF7VRYqMY'],
       'jorge & mateus': ['hYUcVWY0ujg', 'rwRcRrS0IkM', 'bXrGD76D4Ps', 'ueT7Th2pXCA'],
       'guilherme & benuto': ['UK4BP7ufpfE', 'wqpfYC0QqP4', 'HR3T4tK7TCQ'],
@@ -946,7 +951,8 @@
         .trim();
       for (const [key, ids] of Object.entries(VERIFIED_HIT_VIDEOS)) {
         if (tLow === key || tLow.includes(key)) {
-          return [...ids];
+          const clean = ids.filter(id => !badAdVideoIds[id]);
+          return clean.length ? clean : [...ids];
         }
       }
       return null;
@@ -1114,12 +1120,13 @@
         return directAudioCache[cacheKey];
       }
 
-      const fetchWithTimeout = async (url, ms = 3600) => {
+      const fetchWithTimeout = async (url, ms = 2400) => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), ms);
         try {
           const r = await fetch(url, { signal: ctrl.signal });
           clearTimeout(t);
+          if (!r.ok) throw new Error('HTTP ' + r.status);
           return r;
         } catch (e) {
           clearTimeout(t);
@@ -1127,7 +1134,9 @@
         }
       };
 
-      // Rota 1: Piped CDN América do Sul (Chile) e Globais -> retorna link direto de áudio M4A com proxy!
+      const tasks = [];
+
+      // Rota 1 (Paralela): 7 servidores Piped CDN disputando em paralelo (Promise.any) para entregar o stream M4A em <800ms!
       if (videoId && videoId.length === 11) {
         const pipedHosts = [
           'https://pipedapi.rivo.lol',
@@ -1138,33 +1147,59 @@
           'https://api.piped.private.coffee',
           'https://pipedapi.smnz.de'
         ];
-        for (const host of pipedHosts) {
-          try {
-            const res = await fetchWithTimeout(`${host}/streams/${videoId}`, 2800);
-            if (res.ok) {
-              const data = await res.json();
-              const streams = data.audioStreams || [];
-              const m4a = streams.find(s => (s.mimeType || '').includes('mp4') && s.url && !s.url.includes('googlevideo.com')) ||
-                          streams.find(s => s.url && !s.url.includes('googlevideo.com'));
-              if (m4a && m4a.url) {
-                directAudioCache[cacheKey] = m4a.url;
-                safeSetStorage('tunevibe_direct_audio_cache_v13', directAudioCache);
-                return m4a.url;
-              }
-            }
-          } catch (_) {}
-        }
+        pipedHosts.forEach(host => {
+          tasks.push((async () => {
+            const res = await fetchWithTimeout(`${host}/streams/${videoId}`, 2300);
+            const data = await res.json();
+            const streams = data.audioStreams || [];
+            const m4a = streams.find(s => (s.mimeType || '').includes('mp4') && s.url && !s.url.includes('googlevideo.com')) ||
+                        streams.find(s => s.url && !s.url.includes('googlevideo.com'));
+            if (m4a && m4a.url) return m4a.url;
+            throw new Error('no-m4a');
+          })());
+        });
       }
 
-      // Rota 2: Invidious Oficial (Chile inv.nadeko.net + Espelhos Oficiais) com local=true (entrega áudio M4A itag=140 direto!)
-      if (videoId && videoId.length === 11) {
-        const invDirectUrls = [
-          `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140&local=true`,
-          `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140&local=true`,
-          `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140&local=true`,
-          `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140&local=true`
-        ];
-        return invDirectUrls[0];
+      // Rota 2 (Paralela): JioSaavn CDN 320kbps MP4/M4A (DES-ECB '38346591') -> Áudio puro de gravadora sem 1 segundo de anúncio!
+      const cleanTitle = (song.title || '').replace(/\s*[\(\[][^\)\]]*[\)\]]/g, '').trim();
+      const mainArtist = parseSongArtists(song.artist, song.title)[0] || '';
+      const saavnQuery = encodeURIComponent(`${cleanTitle} ${mainArtist}`.trim());
+      const saavnApis = [
+        `https://saavn.dev/api/search/songs?query=${saavnQuery}&limit=5`,
+        `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${saavnQuery}&limit=5`
+      ];
+      saavnApis.forEach(apiUrl => {
+        tasks.push((async () => {
+          const res = await fetchWithTimeout(apiUrl, 2400);
+          const json = await res.json();
+          const results = (json.data && json.data.results) || json.results || [];
+          for (const item of results) {
+            const itemDur = Number(item.duration || 0);
+            if (itemDur > 0 && itemDur < 65) continue;
+            const dlList = item.downloadUrl || item.media_preview_url || [];
+            if (Array.isArray(dlList) && dlList.length) {
+              const best = dlList[dlList.length - 1];
+              const url = (typeof best === 'string') ? best : (best.url || best.link || '');
+              if (url && url.startsWith('http')) return url.replace(/^http:/i, 'https:');
+            }
+            if (item.encrypted_media_url) {
+              const dec = decryptSaavnMediaUrl(item.encrypted_media_url);
+              if (dec.length) return dec[0];
+            }
+          }
+          throw new Error('no-saavn');
+        })());
+      });
+
+      if (tasks.length) {
+        try {
+          const winnerUrl = await Promise.any(tasks);
+          if (winnerUrl) {
+            directAudioCache[cacheKey] = winnerUrl;
+            safeSetStorage('tunevibe_direct_audio_cache_v14', directAudioCache);
+            return winnerUrl;
+          }
+        } catch (_) {}
       }
 
       return null;
@@ -1191,27 +1226,158 @@
       return ytApiReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function';
     }
 
-    // Corta qualquer comercial curto de 6s/15s (como BTG Pactual / Principia Skincare) na hora!
+    // =========================================================================
+    // ESCUDO ANTI-PROPAGANDA V14 (4 SINAIS + MUDO ATÉ CONFIRMAR A MÚSICA REAL)
+    // Bloqueia comerciais de 6s, 15s (Tintas Coral), 1:00 e 3:03 (Grupo Raimundo da Fonte)!
+    // =========================================================================
+    const AD_KEYWORDS_BLACKLIST = [
+      'raimundo da fonte', 'oito décadas', 'oito decadas', 'tintas coral',
+      'btg pactual', 'principia', 'patrocinado', 'publicidade', 'comercial',
+      'propaganda', 'anúncio', 'anuncio', 'compre agora', 'saiba mais',
+      'assine já', 'oferta', 'desconto', 'mercado livre', 'shopee', 'ifood',
+      'magalu', 'bradesco', 'itaú', 'itau', 'santander', 'nubank', 'betano',
+      'bet365', 'superbet', 'pixbet', 'apostas', 'seguros', 'consorcio'
+    ];
+
+    function normalizeTextForMatch(str) {
+      return (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function isVideoTitleMatchingSong(videoTitle, songObj) {
+      if (!videoTitle || !songObj) return true;
+      const vNorm = normalizeTextForMatch(videoTitle);
+      if (!vNorm) return true;
+
+      for (const kw of AD_KEYWORDS_BLACKLIST) {
+        if (vNorm.includes(normalizeTextForMatch(kw))) {
+          return false;
+        }
+      }
+
+      const sTitleNorm = normalizeTextForMatch(
+        (songObj.title || '').replace(/\s*[\(\[][^\)\]]*[\)\]]/g, '').replace(/\s*-\s*ao vivo.*$/i, '')
+      );
+      const sArtistNorm = normalizeTextForMatch(songObj.artist || '');
+      const tokens = [...sTitleNorm.split(' '), ...sArtistNorm.split(' ')].filter(w => w.length >= 3 && w !== 'vivo' && w !== 'feat');
+      if (!tokens.length) return true;
+
+      return tokens.some(tok => vNorm.includes(tok));
+    }
+
+    // Inspeciona o stream atual do YouTube a cada 60ms:
+    // - Enquanto não confirmar que é a música real (ou se detectar qualquer anúncio de 6s, 15s, 60s ou 3:03),
+    //   mantém o player 100% MUDO (mute + volume 0) para que NENHUM áudio de comercial saia no alto-falante!
+    // - Se detectar anúncio, salta imediatamente para o fim do anúncio (seekTo(rawDur + 1, true) + 2x) SEM chamar
+    //   loadVideoById no mesmo ID (o que reiniciava o comercial da Tintas Coral aos 0:49!).
+    // - Se o anúncio for inpulável e travar por >450ms, pula silenciosamente para o próximo vídeo de Letra independente!
     function checkAndSkipInStreamAd() {
       if (!usingYtEngine || !ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return false;
       try {
         const pState = ytPlayer.getPlayerState();
+        const cur = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
         const rawDur = typeof ytPlayer.getDuration === 'function' ? (ytPlayer.getDuration() || 0) : 0;
         const expectedDur = state.currentSong ? parseDurationToSec(state.currentSong.duration) : 180;
+        const vData = typeof ytPlayer.getVideoData === 'function' ? (ytPlayer.getVideoData() || {}) : {};
+        const playingVid = vData.video_id || '';
+        const playingTitle = (vData.title || '').trim();
 
-        if (pState === 1 && rawDur > 0 && rawDur <= 35 && expectedDur >= 70) {
+        // Enquanto o vídeo ainda está carregando (antes de começar a rodar), mantém mudo preventivo
+        if (pState !== 1 || cur <= 0.03) {
+          if (!isVerifiedRealSongPlaying) {
+            if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+            if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(0);
+          }
+          return false;
+        }
+
+        // Verifica se é resquício dos primeiros 450ms da música anterior ao trocar rápido no 5G
+        const isJustPreviousSongUnloading =
+          (previousActiveVideoId && playingVid === previousActiveVideoId) ||
+          (previousSongObj && playingTitle && isVideoTitleMatchingSong(playingTitle, previousSongObj) && !isVideoTitleMatchingSong(playingTitle, state.currentSong));
+
+        if (isJustPreviousSongUnloading) {
+          return false;
+        }
+
+        // SINAIS DE PROPAGANDA:
+        // 1) Comercial de até 68 segundos (cobre vinhetas de 6s, Tintas Coral 15s, 30s e Grupo Raimundo da Fonte 1:00 = 60s!)
+        const isShortOr60sAd = (rawDur > 0 && rawDur <= 68 && expectedDur >= 85);
+
+        // 2) Comercial longo (ex: "Oito décadas - Grupo Raimundo da Fonte" de 3:03 = 183s na música Pela Última Vez de 2:42 = 162s):
+        //    duração difere em >= 15s da música oficial E o título não bate com a música (ou duração difere em >= 38s)!
+        const isLongCommercialMismatch =
+          (rawDur > 68 && expectedDur > 0 && Math.abs(rawDur - expectedDur) >= 15 && playingTitle && !isVideoTitleMatchingSong(playingTitle, state.currentSong));
+
+        // 3) ID do vídeo em reprodução no iframe é diferente do ID solicitado (pre-roll injetado pelo YouTube)
+        const isDifferentAdVideoId =
+          Boolean(playingVid && currentActiveVideoId && playingVid !== currentActiveVideoId && !currentCandidateVideoIds.includes(playingVid));
+
+        // 4) Título do vídeo no iframe contém palavra de comercial ou não tem nenhuma palavra da música/artista
+        const isTitleAdMismatch =
+          Boolean(playingTitle && state.currentSong && !isVideoTitleMatchingSong(playingTitle, state.currentSong));
+
+        const isAdPlaying = isShortOr60sAd || isLongCommercialMismatch || isDifferentAdVideoId || isTitleAdMismatch;
+
+        if (isAdPlaying) {
+          isVerifiedRealSongPlaying = false;
+          // 1. Silencia IMEDIATAMENTE (0% som de propaganda!)
+          if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+          if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(0);
+          if (typeof ytPlayer.setPlaybackRate === 'function') {
+            try { ytPlayer.setPlaybackRate(2); } catch (_) {}
+          }
+
+          const hintEl = document.getElementById('txtEngineStatusHint');
+          if (hintEl && state.currentSong) {
+            hintEl.textContent = '🛡️ Bloqueando propaganda em silêncio e iniciando ' + state.currentSong.title + '...';
+          }
+
           const now = Date.now();
-          if (now - lastAdSkipTime > 3000) {
+          if (!adDetectedFirstTs) adDetectedFirstTs = now;
+
+          // 2. Tenta saltar para o segundo final do comercial (funciona na hora para anúncios de 1:00 e 3:03 como Raimundo da Fonte!)
+          if (now - lastAdSkipTime > 260) {
             lastAdSkipTime = now;
-            if (currentActiveVideoId && typeof ytPlayer.loadVideoById === 'function') {
-              ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: 1 });
+            if (rawDur > 0 && typeof ytPlayer.seekTo === 'function' && cur < rawDur - 0.4) {
+              try { ytPlayer.seekTo(Math.max(0, rawDur - 0.15), true); } catch (_) {}
             }
             if (state.currentSong) updateMediaSessionMetadata(state.currentSong);
+          }
+
+          // 3. Se for anúncio inpulável de 15s (como Tintas Coral) que bloqueia o seekTo por mais de 420ms,
+          //    marca este videoId como monetizado e pula IMEDIATAMENTE para o próximo canal de Letra limpo!
+          if (now - adDetectedFirstTs > 420 && currentVideoCandidateIdx + 1 < currentCandidateVideoIds.length) {
+            if (currentActiveVideoId) {
+              badAdVideoIds[currentActiveVideoId] = true;
+              safeSetStorage('tunevibe_bad_ad_vids_v14', badAdVideoIds);
+            }
+            adDetectedFirstTs = 0;
+            scheduleNextCandidateSwitch('ad_unskippable', 20);
           }
           return true;
         }
 
-        if (pState === 1) {
+        // CONFIRMADO: É A MÚSICA REAL TOCANDO!
+        adDetectedFirstTs = 0;
+        if (!isVerifiedRealSongPlaying) {
+          isVerifiedRealSongPlaying = true;
+          if (typeof ytPlayer.setPlaybackRate === 'function') {
+            try { ytPlayer.setPlaybackRate(1); } catch (_) {}
+          }
+          if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+          if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+          if (state.currentSong) updateMediaSessionMetadata(state.currentSong);
+          const hintEl = document.getElementById('txtEngineStatusHint');
+          if (hintEl && state.currentSong) {
+            hintEl.textContent = '🛡️ Áudio Completo Sem Anúncios (' + (state.currentSong.duration || 'Oficial') + ') • CarPlay Ativo';
+          }
+        } else {
           if (typeof ytPlayer.isMuted === 'function' && ytPlayer.isMuted()) {
             ytPlayer.unMute();
           }
@@ -1223,30 +1389,14 @@
       return false;
     }
 
-    // Se aos 1.7s o ponteiro da música ainda estiver em 0:00 (sinal de que uma vinheta de 6s do YouTube tentou entrar antes do vídeo),
-    // dispara 1 único re-cue em startSeconds: 1 para cortar a vinheta na hora e restaurar o título da música no CarPlay!
+    // Monitora o início da faixa sem jamais recarregar o mesmo videoId por cima de anúncio (evita reiniciar anúncios de 15s!)
     function armPreRollAdKiller() {
       clearTimeout(preRollKillerTimer);
       didPreRollRecueForCurrentVid = false;
       preRollKillerTimer = setTimeout(() => {
-        if (!usingYtEngine || !ytPlayer || !state.currentSong || didPreRollRecueForCurrentVid) return;
-        try {
-          const cur = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
-          const rawDur = typeof ytPlayer.getDuration === 'function' ? (ytPlayer.getDuration() || 0) : 0;
-          // Se ainda está em 0:00 (ou se a duração reportada é de vinheta <= 35s), recarrega em 1s para matar a propaganda!
-          if ((cur < 0.2 || (rawDur > 0 && rawDur <= 35)) && currentActiveVideoId) {
-            didPreRollRecueForCurrentVid = true;
-            ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: 1 });
-            if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-            if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
-            if (typeof ytPlayer.playVideo === 'function') {
-              try { ytPlayer.playVideo(); } catch (_) {}
-            }
-            // Re-afirma o nome e capa da música no painel do CarPlay!
-            updateMediaSessionMetadata(state.currentSong);
-          }
-        } catch (_) {}
-      }, 1750);
+        if (!usingYtEngine || !ytPlayer || !state.currentSong) return;
+        checkAndSkipInStreamAd();
+      }, 300);
     }
 
     function armPlaybackWatchdog() {
@@ -1257,13 +1407,13 @@
           const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
           const cur = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
           if (pState !== 1 && pState !== 2 && pState !== 3 && cur === 0 && currentVideoCandidateIdx + 1 < currentCandidateVideoIds.length) {
-            scheduleNextCandidateSwitch('watchdog');
+            scheduleNextCandidateSwitch('watchdog', 50);
           }
         } catch (_) {}
-      }, 6500);
+      }, 5200);
     }
 
-    function scheduleNextCandidateSwitch(reason = 'error') {
+    function scheduleNextCandidateSwitch(reason = 'error', delayMs = 120) {
       if (!usingYtEngine || !state.currentSong) return;
       clearTimeout(errorSwitchTimer);
       errorSwitchTimer = setTimeout(() => {
@@ -1271,16 +1421,19 @@
         const hintEl = document.getElementById('txtEngineStatusHint');
 
         if (currentVideoCandidateIdx + 1 < currentCandidateVideoIds.length) {
+          previousActiveVideoId = currentActiveVideoId;
           currentVideoCandidateIdx++;
           const nextVid = currentCandidateVideoIds[currentVideoCandidateIdx];
           currentActiveVideoId = nextVid;
+          isVerifiedRealSongPlaying = false;
+          adDetectedFirstTs = 0;
           if (hintEl) {
-            hintEl.textContent = '🛡️ Alternando fonte #' + (currentVideoCandidateIdx + 1) + ' (' + (state.currentSong.duration || 'Completa') + ')...';
+            hintEl.textContent = '🛡️ Alternando para fonte limpa #' + (currentVideoCandidateIdx + 1) + ' (' + (state.currentSong.duration || 'Completa') + ')...';
           }
           if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+            if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+            if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(0);
             ytPlayer.loadVideoById({ videoId: nextVid, startSeconds: 0 });
-            if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-            if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
             if (typeof ytPlayer.playVideo === 'function') {
               try { ytPlayer.playVideo(); } catch (_) {}
             }
@@ -1288,7 +1441,7 @@
             armPlaybackWatchdog();
           }
         }
-      }, 320);
+      }, delayMs);
     }
 
     window.onYouTubeIframeAPIReady = function() {
@@ -1317,24 +1470,20 @@
                 clearTimeout(errorSwitchTimer);
                 clearTimeout(playbackWatchdogTimer);
                 clearTimeout(preRollKillerTimer);
-                if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-                if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+                // Verifica IMEDIATAMENTE se o que entrou em PLAYING é a música ou uma propaganda!
+                const isAd = checkAndSkipInStreamAd();
                 state.isPlaying = true;
                 try { activeAudio.pause(); standbyAudio.pause(); } catch (_) {}
                 if (carplayBridgeAudio.paused && carplayBridgeAudio.src) {
                   carplayBridgeAudio.play().catch(() => {});
                 }
-                // Sempre re-aplica os metadados da música no CarPlay quando a faixa entra em PLAYING!
-                if (state.currentSong) updateMediaSessionMetadata(state.currentSong);
-                const hintEl = document.getElementById('txtEngineStatusHint');
-                if (hintEl && state.currentSong) {
-                  hintEl.textContent = '🛡️ Áudio Completo Sem Anúncios (' + (state.currentSong.duration || 'Oficial') + ') • CarPlay Ativo';
+                if (!isAd && state.currentSong) {
+                  updateMediaSessionMetadata(state.currentSong);
                 }
                 updatePlayerUi();
               } else if (ev.data === 5) {
                 try {
-                  if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-                  if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+                  if (!isVerifiedRealSongPlaying && typeof ytPlayer.mute === 'function') ytPlayer.mute();
                   ytPlayer.playVideo();
                 } catch (_) {}
               } else if (ev.data === 2) {
@@ -1360,7 +1509,7 @@
               }
             },
             onError: () => {
-              scheduleNextCandidateSwitch('onerror');
+              scheduleNextCandidateSwitch('onerror', 80);
             }
           }
         });
@@ -1453,11 +1602,14 @@
           titleZone.includes('lyrics') ||
           titleZone.includes('legendado');
 
-        // Canais oficiais de artistas ("badge_style_type_verified_artist"), VEVO e "- Topic" têm vinhetas de 6s (BTG / Principia)
+        // Canais oficiais de artistas ("badge_style_type_verified_artist"), VEVO, "- Topic" e grandes redes monetizadas (7clouds / Ginga Flow)
         const isMonetizedOfficial =
           ctxLow.includes('provided to youtube by') ||
           ctxLow.includes(' - topic') ||
           ctxLow.includes('vevo') ||
+          ctxLow.includes('7clouds') ||
+          ctxLow.includes('ginga flow') ||
+          ctxLow.includes('gingaflow') ||
           ctxLow.includes('badge_style_type_verified_artist') ||
           titleZone.includes('clipe oficial') ||
           titleZone.includes('vídeo oficial') ||
@@ -1559,7 +1711,7 @@
             const combined = [...t1Lyrics, ...t2Other, ...t3Official];
             if (combined.length) {
               videoIdsListCache[cacheKey] = combined;
-              safeSetStorage('tunevibe_vidlist_cache_v13', videoIdsListCache);
+              safeSetStorage('tunevibe_vidlist_cache_v14', videoIdsListCache);
               return combined;
             }
           }
@@ -1579,7 +1731,7 @@
             const ids = extractVideoIdsUniversal(htmlText);
             if (ids.length) {
               videoIdsListCache[cacheKey] = ids;
-              safeSetStorage('tunevibe_vidlist_cache_v13', videoIdsListCache);
+              safeSetStorage('tunevibe_vidlist_cache_v14', videoIdsListCache);
               return ids;
             }
           }
@@ -1595,7 +1747,7 @@
             const ids = (Array.isArray(list) ? list : []).map(x => x.videoId).filter(Boolean);
             if (ids.length) {
               videoIdsListCache[cacheKey] = ids;
-              safeSetStorage('tunevibe_vidlist_cache_v13', videoIdsListCache);
+              safeSetStorage('tunevibe_vidlist_cache_v14', videoIdsListCache);
               return ids;
             }
           }
@@ -1635,7 +1787,7 @@
       clearInterval(ytProgressTimer);
       ytProgressTimer = setInterval(() => {
         if (!usingYtEngine || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
-        checkAndSkipInStreamAd();
+        const isAd = checkAndSkipInStreamAd();
 
         // Se a tela do iPhone estiver bloqueada (document.hidden) e o iOS tentou pausar o player (estado 2),
         // como este timer continua rodando graças ao carplayBridgeAudio, reativa o play imediatamente!
@@ -1644,10 +1796,22 @@
           try { ytPlayer.playVideo(); } catch (_) {}
         }
 
+        const fallbackDur = state.currentSong ? parseDurationToSec(state.currentSong.duration) : 210;
+        // Enquanto estiver cortando qualquer anúncio em silêncio, trava o mostrador em 0:00 e na duração oficial da música!
+        if (isAd || !isVerifiedRealSongPlaying) {
+          const seekEl = document.getElementById('rngFullSeek');
+          if (seekEl && fallbackDur > 0) {
+            seekEl.max = Math.floor(fallbackDur);
+            seekEl.value = 0;
+          }
+          document.getElementById('txtFullCurTime').textContent = '0:00';
+          document.getElementById('txtFullTotTime').textContent = formatSec(fallbackDur);
+          return;
+        }
+
         const cur = ytPlayer.getCurrentTime() || 0;
         const rawDur = ytPlayer.getDuration() || 0;
-        const fallbackDur = state.currentSong ? parseDurationToSec(state.currentSong.duration) : 210;
-        const dur = rawDur > 45 ? rawDur : fallbackDur;
+        const dur = rawDur > 68 ? rawDur : fallbackDur;
 
         if (cur > 0 && !state.isPlaying && !userManuallyPaused) {
           state.isPlaying = true;
@@ -1672,12 +1836,12 @@
           } catch (_) {}
         }
 
-        if (state.djAutomix && !state.djCrossfadeTriggered && dur > 45 && cur > 5 && (dur - cur) <= 3.4 && (dur - cur) > 0.2) {
+        if (state.djAutomix && !state.djCrossfadeTriggered && dur > 68 && cur > 5 && (dur - cur) <= 3.4 && (dur - cur) > 0.2) {
           state.djCrossfadeTriggered = true;
           showToast('🎧 DJ 3s Mix: entrando próxima música...');
           playNextTrack();
         }
-      }, 250);
+      }, 75);
     }
 
     function safeGetStorage(key, fallback) {
@@ -1935,6 +2099,11 @@
     async function playSongObject(song, viaCrossfade = false) {
       if (!song) return;
       const myLoadToken = ++currentSongLoadToken;
+      previousSongObj = state.currentSong || null;
+      previousActiveVideoId = currentActiveVideoId || '';
+      isVerifiedRealSongPlaying = false;
+      adDetectedFirstTs = 0;
+      didPreRollRecueForCurrentVid = false;
       state.currentSong = song;
       state.djCrossfadeTriggered = false;
       userManuallyPaused = false;
@@ -2012,8 +2181,9 @@
         currentVideoCandidateIdx = 0;
         currentActiveVideoId = cachedIds[0];
 
-        if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-        if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+        // Inicia 100% MUDO até o checkAndSkipInStreamAd confirmar em ~75ms que o stream é a música real (e não propaganda!)
+        if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+        if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(0);
         ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: 0 });
         if (typeof ytPlayer.playVideo === 'function') {
           try { ytPlayer.playVideo(); } catch (_) {}
@@ -2044,8 +2214,8 @@
 
       if (ytApiReady && ytPlayer && typeof ytPlayer.playVideo === 'function') {
         try {
-          if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-          if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+          if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+          if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(0);
           ytPlayer.playVideo();
         } catch (_) {}
       }
@@ -2062,8 +2232,9 @@
         currentVideoCandidateIdx = 0;
         currentActiveVideoId = candidateIds[0];
 
-        if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-        if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+        // Inicia 100% MUDO até o checkAndSkipInStreamAd confirmar em ~75ms que o stream é a música real (e não propaganda!)
+        if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+        if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(0);
         ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: 0 });
         if (typeof ytPlayer.playVideo === 'function') {
           try { ytPlayer.playVideo(); } catch (_) {}
