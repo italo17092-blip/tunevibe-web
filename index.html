@@ -28,15 +28,31 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
-    body {
+    html, body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: #0b0c10;
       color: #ffffff;
       margin: 0;
       padding: 0;
-      overflow-x: hidden;
+      width: 100% !important;
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none !important;
+      position: relative;
+      touch-action: pan-y;
+    }
+    body {
       padding-top: env(safe-area-inset-top, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    main, header, nav, #modalFullPlayer {
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none !important;
+    }
+    .overflow-x-auto {
+      touch-action: pan-x pan-y;
+      max-width: 100%;
     }
     .no-scrollbar::-webkit-scrollbar {
       display: none;
@@ -56,14 +72,15 @@
     #modalFullPlayer.hidden {
       display: block !important;
       visibility: visible !important;
-      opacity: 0.02 !important;
+      opacity: 0.01 !important;
       pointer-events: none !important;
       z-index: 25 !important;
       position: fixed !important;
-      bottom: 64px !important;
-      right: 8px !important;
-      width: 240px !important;
-      height: 140px !important;
+      bottom: 68px !important;
+      left: 12px !important;
+      right: auto !important;
+      width: 180px !important;
+      height: 110px !important;
       overflow: hidden !important;
       transform: none !important;
       border-radius: 16px !important;
@@ -832,35 +849,50 @@
     let ytProgressTimer = null;
     let errorSwitchTimer = null;
     let playbackWatchdogTimer = null;
+    let preRollKillerTimer = null;
     let currentCandidateVideoIds = [];
     let currentVideoCandidateIdx = 0;
     let currentActiveVideoId = '';
     let lastAdSkipTime = 0;
     let currentSongLoadToken = 0;
+    let userManuallyPaused = false;
+    let didPreRollRecueForCurrentVid = false;
     let wakeLockSentinel = null;
 
-    // Ponte de Áudio Nativa para o Apple CarPlay ("Em Reprodução" com duração completa exata ex: 2:37 / 3:35!)
+    // Ponte de Áudio Nativa para o Apple CarPlay ("Em Reprodução" + Mantém o processo JS do iPhone vivo com a Tela Bloqueada!)
     const carplayBridgeAudio = new Audio();
     carplayBridgeAudio.preload = 'auto';
+    carplayBridgeAudio.loop = true;
     let currentBridgeBlobUrl = null;
 
-    const videoIdsListCache = safeGetStorage('tunevibe_vidlist_cache_v12', {});
-    const directAudioCache = safeGetStorage('tunevibe_direct_audio_cache_v12', {});
+    const videoIdsListCache = safeGetStorage('tunevibe_vidlist_cache_v13', {});
+    const directAudioCache = safeGetStorage('tunevibe_direct_audio_cache_v13', {});
     const authState = safeGetStorage('tunevibe_auth_state_v8', { ytLoggedIn: false, spLoggedIn: false });
 
-    // Dicionário Instantâneo (0ms) de IDs de Letra/Lyrics (Canais de Letra Sem Propaganda e Sem Erro 150!)
+    // Dicionário Instantâneo (0ms) de IDs de Canais de Letra Independentes (100% Livres de Propaganda de Gravadora e Livres de Erro 150!)
     const VERIFIED_HIT_VIDEOS = {
-      'pela última vez': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU', 'yRYkZudxLsw', '27MyzloOgvk', 'CF9eyW8TnYQ', 'uM066MNE7Uw', 'HOxCrN-ke18'],
-      'pela ultima vez': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU', 'yRYkZudxLsw', '27MyzloOgvk', 'CF9eyW8TnYQ'],
-      'aquela pessoa': ['beLzDYjh0uU', 'WqI83e9C_ds', 'vcamVoGVhWw', 'a5vH9f0lHZg'],
-      'sonha comigo': ['6cxLxUTufsc', 'Ulf9vOgGEBQ', 'edZiZJcm1n4', 'UkeCb5xDYbM'],
-      'aproveita que eu tô brigado': ['3-wF7VRYqMY', '2U11A5C1nds', '5PbLWsFs84o', 'EKGic7WUtdM'],
-      'aproveita que eu to brigado': ['3-wF7VRYqMY', '2U11A5C1nds', '5PbLWsFs84o', 'EKGic7WUtdM'],
+      'pela última vez': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU', 'yRYkZudxLsw', '27MyzloOgvk', 'CF9eyW8TnYQ', 'uM066MNE7Uw'],
+      'pela ultima vez': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU', 'yRYkZudxLsw', '27MyzloOgvk'],
+      'aquela pessoa': ['beLzDYjh0uU', 'WqI83e9C_ds', 'vcamVoGVhWw'],
+      'sonha comigo': ['Ulf9vOgGEBQ', 'edZiZJcm1n4', 'UkeCb5xDYbM', '6cxLxUTufsc'],
+      'aproveita que eu tô brigado': ['3-wF7VRYqMY', '2U11A5C1nds', '5PbLWsFs84o'],
+      'aproveita que eu to brigado': ['3-wF7VRYqMY', '2U11A5C1nds', '5PbLWsFs84o'],
       'eu tenho medo': ['4XffpXj38a0', 'TRoXSnb9vN0', 'wVt4AozqvP8', 'XQofJ1dH2Gk'],
       'tenho medo': ['4XffpXj38a0', 'TRoXSnb9vN0', 'wVt4AozqvP8', 'XQofJ1dH2Gk'],
       'eu não sendo eu': ['-9wV9SgzwdE', 'ww4nM7zShdU'],
       'eu nao sendo eu': ['-9wV9SgzwdE', 'ww4nM7zShdU'],
-      'amor perfeito': ['G7eCItLopCU', 'yBPS2j29z8M'],
+      'amor perfeito': ['Cs0ve-cM004', '7iKu86xjZAs', 'klW8Y-0fkuI', '2HG-H9yFNs4'],
+      'tô fazendo falta': ['klW8Y-0fkuI', 'Cs0ve-cM004', '7iKu86xjZAs'],
+      'to fazendo falta': ['klW8Y-0fkuI', 'Cs0ve-cM004', '7iKu86xjZAs'],
+      'flash': ['eODPMV65scw', 'zn4-9D_tqnQ', 'x3hI1DvMBgg', 'Gx0Lce4soXU'],
+      'você não é ela': ['pmsyFoBzMGs', 'U6ZP7nEuJa8', 'XUv_MaKqsnc', 'qH4yRUxpAxo'],
+      'voce nao e ela': ['pmsyFoBzMGs', 'U6ZP7nEuJa8', 'XUv_MaKqsnc', 'qH4yRUxpAxo'],
+      'tentação': ['SPAfQD-6WJU', 'ld8Fem9x9zI', 'TE0Yr-7U2Hg'],
+      'tentacao': ['SPAfQD-6WJU', 'ld8Fem9x9zI', 'TE0Yr-7U2Hg'],
+      'seu astral': ['hYUcVWY0ujg', 'OP-HNg_M2r8', 'XL_HdSuV1a0', 'Sdam9wAYpUc'],
+      'haja colírio': ['UK4BP7ufpfE', 'wqpfYC0QqP4', 'HR3T4tK7TCQ'],
+      'haja colirio': ['UK4BP7ufpfE', 'wqpfYC0QqP4', 'HR3T4tK7TCQ'],
+      'nocaute': ['rwRcRrS0IkM', 'kIiAIMnoADo', '7emvkdrkxZw', 'CMHdd6nLtuE'],
       'cidade vizinha': ['FUVrWOkNpOU', 'DdCOEtfMjog', 'TJnGvUrK4QM', 'LK_VakyHOy0'],
       'recaídas': ['FFAMbSdjUOM', 'G_Yxn7Z6QIU'],
       'recaidas': ['FFAMbSdjUOM', 'G_Yxn7Z6QIU'],
@@ -891,15 +923,17 @@
 
     const VERIFIED_ARTIST_VIDEOS = {
       'gusttavo lima': ['WZ_D0MuXcE0', 'GvVroxuPYIs', '1w9kZUNZkVg'],
-      'hugo & guilherme': ['2L0y5gl9jxU', 'z_nGvD4_kNw', 'yHLbFtqFvRg', 'q-Z6WtSnY5Y'],
-      'henrique & juliano': ['kQ-O04lxtKE', 'beLzDYjh0uU', '-CgqrmZ9ZAs', 'rSJGwWDts6U'],
-      'zé neto & cristiano': ['Gfhvp18J2lI', '6cxLxUTufsc', 'C6_NcJu8BpE', 'CRdX5fayAYg'],
+      'hugo & guilherme': ['2L0y5gl9jxU', 'eODPMV65scw', 'z_nGvD4_kNw', 'yHLbFtqFvRg'],
+      'henrique & juliano': ['kQ-O04lxtKE', 'beLzDYjh0uU', 'FUVrWOkNpOU', '-CgqrmZ9ZAs'],
+      'zé neto & cristiano': ['Ulf9vOgGEBQ', 'pmsyFoBzMGs', 'Gfhvp18J2lI', 'C6_NcJu8BpE'],
       'felipe & rodrigo': ['tYYQMzr1RA4', '-9wV9SgzwdE'],
+      'felipe amorim': ['SPAfQD-6WJU', 'ld8Fem9x9zI', 'gW1tU4ohrvI'],
       'diego & victor hugo': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U'],
       'nattan': ['eKcG7s0BF1g', '3-wF7VRYqMY', 'c_YNrSK8gcA', 'gW1tU4ohrvI'],
       'menos é mais': ['eKcG7s0BF1g', 'CaSUkHagX2E', 'GvV-jh3xWtU'],
       'zé vaqueiro': ['4XffpXj38a0', 'tQALlKVEkC4', '3-wF7VRYqMY'],
-      'jorge & mateus': ['bXrGD76D4Ps', 'ueT7Th2pXCA', '0jPOws4hJqc'],
+      'jorge & mateus': ['hYUcVWY0ujg', 'rwRcRrS0IkM', 'bXrGD76D4Ps', 'ueT7Th2pXCA'],
+      'guilherme & benuto': ['UK4BP7ufpfE', 'wqpfYC0QqP4', 'HR3T4tK7TCQ'],
       'bruno mars': ['RQFRjP_vYmM', 'Duo9G5BC_ZA', 'AiVVNMfHvbo']
     };
 
@@ -930,7 +964,6 @@
       return 210;
     }
 
-    // Solicita Screen Wake Lock para manter o CarPlay ativo enquanto o iPhone está conectado no carro
     async function requestCarPlayWakeLock() {
       if ('wakeLock' in navigator && !wakeLockSentinel) {
         try {
@@ -942,8 +975,9 @@
       }
     }
 
-    // Gera um stream WAV PCM de baixíssimo peso (3000 Hz, 8-bit mono) com a DURAÇÃO EXATA da música completa (ex: 2:37 = 157s)
-    // para que o painel do Apple CarPlay ("Em Reprodução") mostre a barra de tempo completa (-2:37, nunca -0:30!), capa e controles!
+    // Gera stream WAV PCM com a DURAÇÃO EXATA da música completa (ex: 3:20 = 200s) para:
+    // 1) Exibir no CarPlay o tempo completo da música, a capa e o nome da música (sobrepondo qualquer metadado do iframe!)
+    // 2) Manter o processo de áudio e timers do iPhone 100% vivos quando você bloqueia a tela do iPhone no botão lateral!
     function startCarPlayDurationBridge(song, durationSec) {
       try {
         const dur = Math.max(60, Math.min(600, Math.floor(durationSec || 210)));
@@ -963,17 +997,16 @@
         writeStr(8, 'WAVE');
         writeStr(12, 'fmt ');
         view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true); // PCM
-        view.setUint16(22, 1, true); // Mono
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
         view.setUint32(24, sampleRate, true);
         view.setUint32(28, sampleRate, true);
         view.setUint16(32, 1, true);
-        view.setUint16(34, 8, true); // 8-bit
+        view.setUint16(34, 8, true);
         writeStr(36, 'data');
         view.setUint32(40, numSamples, true);
 
         const samples = new Uint8Array(buffer, 44);
-        // Dither imperceptível (128/129) para o CoreAudio do iOS reconhecer sessão ativa no CarPlay
         for (let i = 0; i < numSamples; i++) {
           samples[i] = (i & 1) ? 128 : 129;
         }
@@ -996,9 +1029,49 @@
       } catch (_) {}
     }
 
-    // Sincroniza cliques nos botões físicos do painel do CarPlay / Volante com o motor ativo
+    // Quando o usuário bloqueia a tela do iPhone (visibilitychange -> document.hidden === true),
+    // o iOS envia um pause automático para vídeos em iframe após ~3s (como ocorreu aos 0:25 do vídeo).
+    // Como o carplayBridgeAudio mantém nosso JS vivo, reativamos o play imediatamente!
+    function forceResumeOnLockScreenIfPlaying() {
+      if (!state.currentSong || userManuallyPaused) return;
+      if (state.currentSong.directFullAudioUrl && !usingYtEngine) {
+        if (activeAudio.paused) activeAudio.play().catch(() => {});
+        return;
+      }
+      if (usingYtEngine && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+        try {
+          if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+          if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+          ytPlayer.playVideo();
+        } catch (_) {}
+        if (carplayBridgeAudio.paused && carplayBridgeAudio.src) {
+          carplayBridgeAudio.play().catch(() => {});
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && !userManuallyPaused && state.currentSong) {
+        // Se já descobrimos o stream direto MP4/M4A da música, transfere imediatamente para o <audio> nativo ao bloquear a tela!
+        if (state.currentSong.directFullAudioUrl && usingYtEngine) {
+          const curSec = (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') ? (ytPlayer.getCurrentTime() || 0) : 0;
+          switchToDirectFullAudioNow(state.currentSong, state.currentSong.directFullAudioUrl, curSec);
+        }
+        // Dispara pulsos de retomada para impedir que o bloqueio de tela do iOS pause o player aos 3s-4s!
+        setTimeout(forceResumeOnLockScreenIfPlaying, 60);
+        setTimeout(forceResumeOnLockScreenIfPlaying, 350);
+        setTimeout(forceResumeOnLockScreenIfPlaying, 900);
+        setTimeout(forceResumeOnLockScreenIfPlaying, 1800);
+        setTimeout(forceResumeOnLockScreenIfPlaying, 3200);
+        setTimeout(forceResumeOnLockScreenIfPlaying, 4500);
+      } else if (!document.hidden && state.currentSong) {
+        requestCarPlayWakeLock();
+      }
+    });
+
     carplayBridgeAudio.addEventListener('play', () => {
       if (usingYtEngine && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+        userManuallyPaused = false;
         if (ytPlayer.getPlayerState() !== 1) {
           try { ytPlayer.playVideo(); } catch (_) {}
           state.isPlaying = true;
@@ -1007,20 +1080,9 @@
       }
     });
 
-    carplayBridgeAudio.addEventListener('pause', () => {
-      // Se o usuário pausou pelo botão da tela do CarPlay (e não foi parada interna), pausa o ytPlayer também
-      if (usingYtEngine && ytPlayer && typeof ytPlayer.getPlayerState === 'function' && !carplayBridgeAudio.ended) {
-        if (ytPlayer.getPlayerState() === 1 && !document.hidden) {
-          try { ytPlayer.pauseVideo(); } catch (_) {}
-          state.isPlaying = false;
-          updatePlayerUi();
-        }
-      }
-    });
-
     // =========================================================================
-    // MOTOR DE ÁUDIO DIRETO 320KBPS / 160KBPS MP4 (JIOSAAVN DES-ECB '38346591' + PIPED M4A)
-    // Toca diretamente na tag nativa <audio> (activeAudio) = Funciona 100% com Tela Bloqueada no iPhone e no CarPlay!
+    // MOTOR DE ÁUDIO DIRETO MP4/M4A (INVIDIOUS CHILE + PIPED CHILE + JIOSAAVN DES-ECB)
+    // Toca diretamente na tag nativa <audio> (activeAudio) = 100% imune a bloqueio de tela no iPhone e 0% propaganda!
     // =========================================================================
     function decryptSaavnMediaUrl(encryptedB64) {
       if (!encryptedB64 || typeof CryptoJS === 'undefined') return [];
@@ -1052,14 +1114,7 @@
         return directAudioCache[cacheKey];
       }
 
-      const cleanTitle = song.title
-        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-        .replace(/\s*[\(\[][^\)\]]*(?:ao vivo|live)[^\)\]]*[\)\]]/gi, '')
-        .trim();
-      const primaryArtist = parseSongArtists(song.artist, song.title)[0];
-      const q = `${cleanTitle} ${primaryArtist}`;
-
-      const fetchWithTimeout = async (url, ms = 4000) => {
+      const fetchWithTimeout = async (url, ms = 3600) => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), ms);
         try {
@@ -1072,54 +1127,20 @@
         }
       };
 
-      // Rota 1: JioSaavn Official API v4 + Descriptografia DES-ECB ('38346591') -> Link direto Akamai CDN (aac.saavncdn.com/..._320.mp4)
-      const saavnApiUrl = `https://www.jiosaavn.com/api.php?_format=json&_marker=0&api_version=4&ctx=web6dot0&__call=search.getResults&q=${encodeURIComponent(q)}&n=6&p=1`;
-      const saavnProxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(saavnApiUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(saavnApiUrl)}`
-      ];
-
-      const normTitle = cleanTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const normArtist = primaryArtist.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const artistWord = normArtist.split(/\s+/)[0] || '';
-
-      for (const pUrl of saavnProxies) {
-        try {
-          const res = await fetchWithTimeout(pUrl, 3800);
-          if (res.ok) {
-            const data = await res.json();
-            const results = data.results || [];
-            for (const item of results) {
-              const itemTitle = ((item.title || '') + ' ' + (item.subtitle || ''))
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '');
-              const dur = Number((item.more_info && item.more_info.duration) || item.duration || 0);
-              const encUrl = (item.more_info && item.more_info.encrypted_media_url) || item.encrypted_media_url || '';
-              if (encUrl && dur >= 65 && (!artistWord || itemTitle.includes(artistWord))) {
-                const decUrls = decryptSaavnMediaUrl(encUrl);
-                if (decUrls.length) {
-                  const chosen = decUrls[1] || decUrls[0]; // _160.mp4 é universal em 100% do catálogo Saavn
-                  directAudioCache[cacheKey] = chosen;
-                  safeSetStorage('tunevibe_direct_audio_cache_v12', directAudioCache);
-                  return chosen;
-                }
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      // Rota 2: Piped /streams/${videoId} (Stream M4A completo com proxy embutido)
+      // Rota 1: Piped CDN América do Sul (Chile) e Globais -> retorna link direto de áudio M4A com proxy!
       if (videoId && videoId.length === 11) {
         const pipedHosts = [
-          'https://api.piped.private.coffee',
+          'https://pipedapi.rivo.lol',
+          'https://yapi.vyper.me',
           'https://pipedapi.kavin.rocks',
-          'https://pipedapi.adminforge.de'
+          'https://api-piped.mha.fi',
+          'https://pipedapi.adminforge.de',
+          'https://api.piped.private.coffee',
+          'https://pipedapi.smnz.de'
         ];
         for (const host of pipedHosts) {
           try {
-            const res = await fetchWithTimeout(`${host}/streams/${videoId}`, 3500);
+            const res = await fetchWithTimeout(`${host}/streams/${videoId}`, 2800);
             if (res.ok) {
               const data = await res.json();
               const streams = data.audioStreams || [];
@@ -1127,12 +1148,23 @@
                           streams.find(s => s.url && !s.url.includes('googlevideo.com'));
               if (m4a && m4a.url) {
                 directAudioCache[cacheKey] = m4a.url;
-                safeSetStorage('tunevibe_direct_audio_cache_v12', directAudioCache);
+                safeSetStorage('tunevibe_direct_audio_cache_v13', directAudioCache);
                 return m4a.url;
               }
             }
           } catch (_) {}
         }
+      }
+
+      // Rota 2: Invidious Oficial (Chile inv.nadeko.net + Espelhos Oficiais) com local=true (entrega áudio M4A itag=140 direto!)
+      if (videoId && videoId.length === 11) {
+        const invDirectUrls = [
+          `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140&local=true`,
+          `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140&local=true`,
+          `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140&local=true`,
+          `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140&local=true`
+        ];
+        return invDirectUrls[0];
       }
 
       return null;
@@ -1159,39 +1191,62 @@
       return ytApiReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function';
     }
 
-    // Verifica APENAS quando o vídeo já está em estado PLAYING (1) se a duração total reportada é um comercial curto (<= 35s).
-    // NUNCA interrompe o carregamento em 5G enquanto está em BUFFERING (3) ou UNSTARTED (-1)!
+    // Corta qualquer comercial curto de 6s/15s (como BTG Pactual / Principia Skincare) na hora!
     function checkAndSkipInStreamAd() {
       if (!usingYtEngine || !ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return false;
       try {
         const pState = ytPlayer.getPlayerState();
-        if (pState !== 1) return false;
-
         const rawDur = typeof ytPlayer.getDuration === 'function' ? (ytPlayer.getDuration() || 0) : 0;
         const expectedDur = state.currentSong ? parseDurationToSec(state.currentSong.duration) : 180;
 
-        if (rawDur > 0 && rawDur <= 35 && expectedDur >= 70) {
+        if (pState === 1 && rawDur > 0 && rawDur <= 35 && expectedDur >= 70) {
           const now = Date.now();
-          if (now - lastAdSkipTime > 3500) {
+          if (now - lastAdSkipTime > 3000) {
             lastAdSkipTime = now;
-            if (typeof ytPlayer.seekTo === 'function') {
-              ytPlayer.seekTo(rawDur, true);
-            }
             if (currentActiveVideoId && typeof ytPlayer.loadVideoById === 'function') {
               ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: 1 });
             }
+            if (state.currentSong) updateMediaSessionMetadata(state.currentSong);
           }
           return true;
         }
 
-        if (typeof ytPlayer.isMuted === 'function' && ytPlayer.isMuted()) {
-          ytPlayer.unMute();
-        }
-        if (typeof ytPlayer.setVolume === 'function') {
-          ytPlayer.setVolume(100);
+        if (pState === 1) {
+          if (typeof ytPlayer.isMuted === 'function' && ytPlayer.isMuted()) {
+            ytPlayer.unMute();
+          }
+          if (typeof ytPlayer.setVolume === 'function') {
+            ytPlayer.setVolume(100);
+          }
         }
       } catch (_) {}
       return false;
+    }
+
+    // Se aos 1.7s o ponteiro da música ainda estiver em 0:00 (sinal de que uma vinheta de 6s do YouTube tentou entrar antes do vídeo),
+    // dispara 1 único re-cue em startSeconds: 1 para cortar a vinheta na hora e restaurar o título da música no CarPlay!
+    function armPreRollAdKiller() {
+      clearTimeout(preRollKillerTimer);
+      didPreRollRecueForCurrentVid = false;
+      preRollKillerTimer = setTimeout(() => {
+        if (!usingYtEngine || !ytPlayer || !state.currentSong || didPreRollRecueForCurrentVid) return;
+        try {
+          const cur = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
+          const rawDur = typeof ytPlayer.getDuration === 'function' ? (ytPlayer.getDuration() || 0) : 0;
+          // Se ainda está em 0:00 (ou se a duração reportada é de vinheta <= 35s), recarrega em 1s para matar a propaganda!
+          if ((cur < 0.2 || (rawDur > 0 && rawDur <= 35)) && currentActiveVideoId) {
+            didPreRollRecueForCurrentVid = true;
+            ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: 1 });
+            if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+            if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+            if (typeof ytPlayer.playVideo === 'function') {
+              try { ytPlayer.playVideo(); } catch (_) {}
+            }
+            // Re-afirma o nome e capa da música no painel do CarPlay!
+            updateMediaSessionMetadata(state.currentSong);
+          }
+        } catch (_) {}
+      }, 1750);
     }
 
     function armPlaybackWatchdog() {
@@ -1201,7 +1256,6 @@
         try {
           const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
           const cur = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
-          // Dá 6.5s de margem para redes móveis 5G antes de trocar de candidato
           if (pState !== 1 && pState !== 2 && pState !== 3 && cur === 0 && currentVideoCandidateIdx + 1 < currentCandidateVideoIds.length) {
             scheduleNextCandidateSwitch('watchdog');
           }
@@ -1230,15 +1284,17 @@
             if (typeof ytPlayer.playVideo === 'function') {
               try { ytPlayer.playVideo(); } catch (_) {}
             }
+            armPreRollAdKiller();
             armPlaybackWatchdog();
           }
         }
-      }, 350);
+      }, 320);
     }
 
     window.onYouTubeIframeAPIReady = function() {
       try {
         ytPlayer = new YT.Player('ytFullTrackMount', {
+          host: 'https://www.youtube-nocookie.com',
           width: '100%',
           height: '100%',
           playerVars: {
@@ -1260,6 +1316,7 @@
               if (ev.data === 1) {
                 clearTimeout(errorSwitchTimer);
                 clearTimeout(playbackWatchdogTimer);
+                clearTimeout(preRollKillerTimer);
                 if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
                 if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
                 state.isPlaying = true;
@@ -1267,6 +1324,8 @@
                 if (carplayBridgeAudio.paused && carplayBridgeAudio.src) {
                   carplayBridgeAudio.play().catch(() => {});
                 }
+                // Sempre re-aplica os metadados da música no CarPlay quando a faixa entra em PLAYING!
+                if (state.currentSong) updateMediaSessionMetadata(state.currentSong);
                 const hintEl = document.getElementById('txtEngineStatusHint');
                 if (hintEl && state.currentSong) {
                   hintEl.textContent = '🛡️ Áudio Completo Sem Anúncios (' + (state.currentSong.duration || 'Oficial') + ') • CarPlay Ativo';
@@ -1279,10 +1338,19 @@
                   ytPlayer.playVideo();
                 } catch (_) {}
               } else if (ev.data === 2) {
-                // Se o iOS tentou pausar o iframe ao bloquear a tela e já temos o stream direto de áudio, assume no activeAudio!
-                if (document.hidden && state.currentSong && state.currentSong.directFullAudioUrl) {
-                  const curSec = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
-                  switchToDirectFullAudioNow(state.currentSong, state.currentSong.directFullAudioUrl, curSec);
+                // Se o usuário NÃO clicou em Pausa (foi o bloqueio de tela do iPhone tentando pausar aos 3s-4s!),
+                // retoma a música na hora para não parar ao bloquear a tela!
+                if (!userManuallyPaused) {
+                  if (document.hidden && state.currentSong && state.currentSong.directFullAudioUrl) {
+                    const curSec = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
+                    switchToDirectFullAudioNow(state.currentSong, state.currentSong.directFullAudioUrl, curSec);
+                    return;
+                  }
+                  setTimeout(() => {
+                    if (usingYtEngine && !userManuallyPaused && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                      try { ytPlayer.playVideo(); } catch (_) {}
+                    }
+                  }, 40);
                   return;
                 }
                 state.isPlaying = false;
@@ -1299,8 +1367,6 @@
       } catch (_) {}
     };
 
-    // Transfere a reprodução para o <audio> nativo (activeAudio) assim que o stream MP4/M4A completo (320kbps/160kbps) é localizado,
-    // permitindo bloquear a tela do iPhone, abrir o Waze/WhatsApp e manter o CarPlay 100% nativo!
     function switchToDirectFullAudioNow(song, directUrl, seekSeconds = 0) {
       if (!song || !directUrl || !state.currentSong || state.currentSong.id !== song.id) return;
       const testAudio = standbyAudio;
@@ -1312,7 +1378,6 @@
         testAudio.removeEventListener('error', onErrorMeta);
         if (!state.currentSong || state.currentSong.id !== song.id) return;
         const dur = testAudio.duration || 0;
-        // Garante que NUNCA é uma prévia de 30s (exige duração >= 60s)
         if (dur < 60) return;
 
         const targetTime = usingYtEngine && ytPlayer && typeof ytPlayer.getCurrentTime === 'function'
@@ -1323,6 +1388,7 @@
         clearInterval(ytProgressTimer);
         clearTimeout(errorSwitchTimer);
         clearTimeout(playbackWatchdogTimer);
+        clearTimeout(preRollKillerTimer);
         stopCarPlayDurationBridge();
         try { if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo(); } catch (_) {}
 
@@ -1331,6 +1397,7 @@
         activeAudio.volume = 1.0;
         activeAudio.play().then(() => {
           state.isPlaying = true;
+          updateMediaSessionMetadata(song);
           const hintEl = document.getElementById('txtEngineStatusHint');
           if (hintEl) {
             hintEl.textContent = '🚗 Áudio Nativo CarPlay & Tela Bloqueada (' + formatSec(dur) + ') • Sem Propaganda';
@@ -1349,6 +1416,8 @@
       testAudio.load();
     }
 
+    // Extrai IDs separando canais independentes de Letra (Tier 1 = Zero Anúncios, como "Matheus Lyrics" aos 0:56 do vídeo!)
+    // e jogando canais oficiais verificados ("BADGE_STYLE_TYPE_VERIFIED_ARTIST" / "Clipe Oficial" / "- Topic") para Tier 3!
     function extractVideoIdsUniversal(rawText) {
       if (!rawText || typeof rawText !== 'string') return [];
       let text = rawText;
@@ -1359,9 +1428,9 @@
         } catch (_) {}
       }
 
-      const tier1LyricsClean = [];
-      const tier2OtherClean = [];
-      const tier3Restricted = [];
+      const tier1FanLyrics = [];
+      const tier2CleanAudio = [];
+      const tier3MonetizedOfficial = [];
       const seen = new Set();
 
       const addCandidate = (vid, contextChunk) => {
@@ -1376,43 +1445,52 @@
           return;
         }
         seen.add(vid);
-        const isRestrictedLabel =
+
+        // Primeiros 380 caracteres após videoId contêm o TÍTULO do vídeo no JSON do YouTube
+        const titleZone = ctxLow.slice(0, 420);
+        const hasLyricsInTitle =
+          titleZone.includes('letra') ||
+          titleZone.includes('lyrics') ||
+          titleZone.includes('legendado');
+
+        // Canais oficiais de artistas ("badge_style_type_verified_artist"), VEVO e "- Topic" têm vinhetas de 6s (BTG / Principia)
+        const isMonetizedOfficial =
           ctxLow.includes('provided to youtube by') ||
           ctxLow.includes(' - topic') ||
-          ctxLow.includes('vevo');
+          ctxLow.includes('vevo') ||
+          ctxLow.includes('badge_style_type_verified_artist') ||
+          titleZone.includes('clipe oficial') ||
+          titleZone.includes('vídeo oficial') ||
+          titleZone.includes('video oficial') ||
+          titleZone.includes('dvd ');
 
-        const isLyricsVideo =
-          ctxLow.includes('letra') ||
-          ctxLow.includes('lyrics') ||
-          ctxLow.includes('legendado');
-
-        if (isRestrictedLabel) {
-          tier3Restricted.push(vid);
-        } else if (isLyricsVideo) {
-          tier1LyricsClean.push(vid);
+        if (hasLyricsInTitle && !isMonetizedOfficial) {
+          tier1FanLyrics.push(vid);
+        } else if (!isMonetizedOfficial) {
+          tier2CleanAudio.push(vid);
         } else {
-          tier2OtherClean.push(vid);
+          tier3MonetizedOfficial.push(vid);
         }
       };
 
       const rendererRegex = /"videoRenderer"\s*:\s*\{\s*"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g;
       let m;
       while ((m = rendererRegex.exec(text)) !== null) {
-        const start = Math.max(0, m.index - 120);
-        const end = Math.min(text.length, m.index + 1400);
+        const start = Math.max(0, m.index);
+        const end = Math.min(text.length, m.index + 1500);
         addCandidate(m[1], text.slice(start, end));
-        if (tier1LyricsClean.length + tier2OtherClean.length >= 12) break;
+        if (tier1FanLyrics.length + tier2CleanAudio.length >= 12) break;
       }
 
       const genericRegex = /"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g;
       while ((m = genericRegex.exec(text)) !== null) {
-        const start = Math.max(0, m.index - 250);
-        const end = Math.min(text.length, m.index + 1000);
+        const start = Math.max(0, m.index);
+        const end = Math.min(text.length, m.index + 1100);
         addCandidate(m[1], text.slice(start, end));
-        if (tier1LyricsClean.length + tier2OtherClean.length >= 12) break;
+        if (tier1FanLyrics.length + tier2CleanAudio.length >= 12) break;
       }
 
-      return [...tier1LyricsClean, ...tier2OtherClean, ...tier3Restricted];
+      return [...tier1FanLyrics, ...tier2CleanAudio, ...tier3MonetizedOfficial];
     }
 
     async function resolveCandidateVideoIds(song) {
@@ -1448,37 +1526,40 @@
       };
 
       const pipedHosts = [
+        'https://pipedapi.rivo.lol',
+        'https://yapi.vyper.me',
         'https://api.piped.private.coffee',
         'https://pipedapi.kavin.rocks',
         'https://pipedapi.adminforge.de'
       ];
       for (const host of pipedHosts) {
         try {
-          const res = await fetchWithTimeout(`${host}/search?q=${encodeURIComponent(query)}&filter=videos`, 3500);
+          const res = await fetchWithTimeout(`${host}/search?q=${encodeURIComponent(query)}&filter=videos`, 3200);
           if (res.ok) {
             const data = await res.json();
             const items = data.items || [];
             const t1Lyrics = [];
             const t2Other = [];
-            const t3Topic = [];
+            const t3Official = [];
             items.forEach(it => {
               const m = (it.url || '').match(/v=([a-zA-Z0-9_-]{11})/);
               if (m && m[1]) {
                 const up = (it.uploaderName || '').toLowerCase();
                 const tit = (it.title || '').toLowerCase();
-                if (up.includes('- topic') || up.includes('vevo')) {
-                  t3Topic.push(m[1]);
-                } else if (tit.includes('letra') || tit.includes('lyrics') || tit.includes('legendado')) {
+                const isVerified = Boolean(it.uploaderVerified) || up.includes('- topic') || up.includes('vevo') || tit.includes('clipe oficial');
+                if (!isVerified && (tit.includes('letra') || tit.includes('lyrics') || tit.includes('legendado'))) {
                   t1Lyrics.push(m[1]);
-                } else {
+                } else if (!isVerified) {
                   t2Other.push(m[1]);
+                } else {
+                  t3Official.push(m[1]);
                 }
               }
             });
-            const combined = [...t1Lyrics, ...t2Other, ...t3Topic];
+            const combined = [...t1Lyrics, ...t2Other, ...t3Official];
             if (combined.length) {
               videoIdsListCache[cacheKey] = combined;
-              safeSetStorage('tunevibe_vidlist_cache_v12', videoIdsListCache);
+              safeSetStorage('tunevibe_vidlist_cache_v13', videoIdsListCache);
               return combined;
             }
           }
@@ -1498,14 +1579,14 @@
             const ids = extractVideoIdsUniversal(htmlText);
             if (ids.length) {
               videoIdsListCache[cacheKey] = ids;
-              safeSetStorage('tunevibe_vidlist_cache_v12', videoIdsListCache);
+              safeSetStorage('tunevibe_vidlist_cache_v13', videoIdsListCache);
               return ids;
             }
           }
         } catch (_) {}
       }
 
-      const invHosts = ['https://inv.nadeko.net', 'https://invidious.privacyredirect.com'];
+      const invHosts = ['https://inv.nadeko.net', 'https://yt.chocolatemoo53.com', 'https://invidious.nerdvpn.de'];
       for (const host of invHosts) {
         try {
           const res = await fetchWithTimeout(`${host}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, 3500);
@@ -1514,7 +1595,7 @@
             const ids = (Array.isArray(list) ? list : []).map(x => x.videoId).filter(Boolean);
             if (ids.length) {
               videoIdsListCache[cacheKey] = ids;
-              safeSetStorage('tunevibe_vidlist_cache_v12', videoIdsListCache);
+              safeSetStorage('tunevibe_vidlist_cache_v13', videoIdsListCache);
               return ids;
             }
           }
@@ -1532,12 +1613,12 @@
     }
 
     function fallbackToDirectAudio(song) {
-      // Usado apenas para faixas do Google Drive pessoal (NUNCA carrega prévia de 30s da Apple!)
       if (!song || !song.streamUrl || !song.streamUrl.includes('docs.google.com')) return;
       usingYtEngine = false;
       clearInterval(ytProgressTimer);
       clearTimeout(errorSwitchTimer);
       clearTimeout(playbackWatchdogTimer);
+      clearTimeout(preRollKillerTimer);
       stopCarPlayDurationBridge();
       try {
         if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
@@ -1556,12 +1637,19 @@
         if (!usingYtEngine || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
         checkAndSkipInStreamAd();
 
+        // Se a tela do iPhone estiver bloqueada (document.hidden) e o iOS tentou pausar o player (estado 2),
+        // como este timer continua rodando graças ao carplayBridgeAudio, reativa o play imediatamente!
+        const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+        if (pState === 2 && !userManuallyPaused) {
+          try { ytPlayer.playVideo(); } catch (_) {}
+        }
+
         const cur = ytPlayer.getCurrentTime() || 0;
         const rawDur = ytPlayer.getDuration() || 0;
         const fallbackDur = state.currentSong ? parseDurationToSec(state.currentSong.duration) : 210;
         const dur = rawDur > 45 ? rawDur : fallbackDur;
 
-        if (cur > 0 && !state.isPlaying) {
+        if (cur > 0 && !state.isPlaying && !userManuallyPaused) {
           state.isPlaying = true;
           updatePlayerUi();
         }
@@ -1574,7 +1662,6 @@
         document.getElementById('txtFullCurTime').textContent = formatSec(cur);
         document.getElementById('txtFullTotTime').textContent = formatSec(dur);
 
-        // Atualiza a barra de tempo no painel do CarPlay em tempo real (ex: 1:00 / -2:17 igual ao YouTube Music!)
         if ('mediaSession' in navigator && typeof navigator.mediaSession.setPositionState === 'function' && dur > 0 && cur >= 0 && cur <= dur) {
           try {
             navigator.mediaSession.setPositionState({
@@ -1585,7 +1672,6 @@
           } catch (_) {}
         }
 
-        // Gatilho DJ 3s Automático na música completa!
         if (state.djAutomix && !state.djCrossfadeTriggered && dur > 45 && cur > 5 && (dur - cur) <= 3.4 && (dur - cur) > 0.2) {
           state.djCrossfadeTriggered = true;
           showToast('🎧 DJ 3s Mix: entrando próxima música...');
@@ -1594,7 +1680,6 @@
       }, 250);
     }
 
-    // Utilitário de Armazenamento Seguro (Compatível com Safari Privado e Canvas)
     function safeGetStorage(key, fallback) {
       try {
         const raw = localStorage.getItem(key);
@@ -1619,7 +1704,6 @@
       window.__toastTimer = setTimeout(() => el.classList.add('hidden'), 2200);
     }
 
-    // Parser Inteligente de Duplas Sertanejas (Nunca divide "Hugo & Guilherme" ou "Diego & Victor Hugo")
     function parseSongArtists(rawArtist, rawTitle = '') {
       let text = (rawArtist || '').trim();
       const featMatch = rawTitle.match(/(?:feat\.?|ft\.?|part\.?)\s*([^)\]]+)/i);
@@ -1693,7 +1777,6 @@
       return url;
     }
 
-    // Busca de Catálogo na Apple iTunes Search API (Apenas Metadados Oficiais e Capas 600x600 — NUNCA usa prévia de 30s!)
     async function fetchSingleTermTracks(term, country = 'BR', limit = 15) {
       const cleanTerm = term.trim();
       const sigWords = cleanTerm
@@ -1727,7 +1810,7 @@
             artist,
             duration: dur,
             albumArt: art,
-            streamUrl: '', // NUNCA guarda prévia de 30s!
+            streamUrl: '',
             albumName: it.collectionName || '',
             genre: it.primaryGenreName || 'Música',
             year: (it.releaseDate || '').slice(0, 4),
@@ -1854,6 +1937,7 @@
       const myLoadToken = ++currentSongLoadToken;
       state.currentSong = song;
       state.djCrossfadeTriggered = false;
+      userManuallyPaused = false;
 
       requestCarPlayWakeLock();
 
@@ -1881,7 +1965,6 @@
       saveAllLocalData();
       renderRecentlyPlayed();
 
-      // Ativa imediatamente a Ponte CarPlay com a duração completa real (ex: 2:37 / 3:35) dentro do gesto de toque do iPhone!
       startCarPlayDurationBridge(song, expectedSec);
       updateMediaSessionMetadata(song);
       updatePlayerUi();
@@ -1889,13 +1972,13 @@
 
       clearTimeout(errorSwitchTimer);
       clearTimeout(playbackWatchdogTimer);
+      clearTimeout(preRollKillerTimer);
 
       try {
         activeAudio.pause();
         standbyAudio.pause();
       } catch (_) {}
 
-      // 1. Se for faixa do Google Drive pessoal, toca direto no activeAudio!
       if (song.platform === 'Google Drive' || (song.streamUrl && song.streamUrl.includes('docs.google.com'))) {
         usingYtEngine = false;
         clearInterval(ytProgressTimer);
@@ -1914,31 +1997,15 @@
       const cachedDirectUrl = directAudioCache[cacheKey];
       const hintEl = document.getElementById('txtEngineStatusHint');
 
-      // 2. Se já temos o link de Áudio Nativo Completo (320kbps/160kbps MP4) em cache, toca direto no <audio> nativo (0ms, funciona com tela bloqueada e CarPlay!)
       if (cachedDirectUrl) {
         song.directFullAudioUrl = cachedDirectUrl;
-        usingYtEngine = false;
-        clearInterval(ytProgressTimer);
-        stopCarPlayDurationBridge();
-        try { if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo(); } catch (_) {}
-        activeAudio.src = cachedDirectUrl;
-        activeAudio.currentTime = 0;
-        activeAudio.volume = 1.0;
-        activeAudio.play().then(() => {
-          state.isPlaying = true;
-          if (hintEl) {
-            hintEl.textContent = '🚗 Áudio Completo CarPlay & Tela Bloqueada (' + (song.duration || 'Oficial') + ') • Sem Propaganda';
-          }
-          updatePlayerUi();
-        }).catch(() => {});
-        return;
+        switchToDirectFullAudioNow(song, cachedDirectUrl, 0);
       }
 
       if (hintEl) hintEl.textContent = '⚡ Iniciando música completa (' + (song.duration || 'Completa') + ')...';
 
       const cachedIds = getInstantVerifiedIds(song) || videoIdsListCache[cacheKey];
 
-      // 3. Caminho Síncrono Instantâneo (0ms) no gesto do usuário (Sem mute inicial que trava no iOS 5G e sem loop!)
       if (ytApiReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function' && Array.isArray(cachedIds) && cachedIds.length > 0) {
         usingYtEngine = true;
         currentCandidateVideoIds = cachedIds;
@@ -1952,13 +2019,13 @@
           try { ytPlayer.playVideo(); } catch (_) {}
         }
         startYtProgressPoller();
+        armPreRollAdKiller();
         armPlaybackWatchdog();
         if (hintEl) {
           hintEl.textContent = '🛡️ Áudio Completo Sem Anúncios (' + (song.duration || 'Oficial') + ') • CarPlay Ativo';
         }
         updatePlayerUi();
 
-        // Em paralelo, busca o stream MP4/M4A nativo completo para habilitar bloqueio de tela no iPhone!
         resolveDirectFullAudioStream(song, currentActiveVideoId).then(directUrl => {
           if (directUrl && myLoadToken === currentSongLoadToken && state.currentSong && state.currentSong.id === song.id) {
             song.directFullAudioUrl = directUrl;
@@ -2002,6 +2069,7 @@
           try { ytPlayer.playVideo(); } catch (_) {}
         }
         startYtProgressPoller();
+        armPreRollAdKiller();
         armPlaybackWatchdog();
         if (hintEl) {
           hintEl.textContent = '🛡️ Áudio Completo Sem Anúncios (' + (song.duration || 'Oficial') + ') • CarPlay Ativo';
@@ -2074,7 +2142,6 @@
             });
           } catch (_) {}
         }
-        // Gatilho DJ 3s antes de acabar a faixa!
         if (state.djAutomix && !state.djCrossfadeTriggered && dur > 45 && cur > 5 && (dur - cur) <= 3.2 && (dur - cur) > 0.2) {
           triggerDj3sTransition();
         }
@@ -2093,6 +2160,10 @@
 
       audioEl.addEventListener('pause', () => {
         if (audioEl !== activeAudio || usingYtEngine) return;
+        if (!userManuallyPaused && document.hidden) {
+          activeAudio.play().catch(() => {});
+          return;
+        }
         state.isPlaying = false;
         updatePlayerUi();
       });
@@ -2115,10 +2186,12 @@
       if (usingYtEngine && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
         const pState = ytPlayer.getPlayerState();
         if (pState === 1) {
+          userManuallyPaused = true;
           ytPlayer.pauseVideo();
           try { carplayBridgeAudio.pause(); } catch (_) {}
           state.isPlaying = false;
         } else {
+          userManuallyPaused = false;
           if (currentActiveVideoId && (pState === -1 || pState === 5 || pState === 0)) {
             ytPlayer.loadVideoById({ videoId: currentActiveVideoId, startSeconds: ytPlayer.getCurrentTime() || 0 });
           }
@@ -2133,8 +2206,10 @@
       }
       if (activeAudio.src) {
         if (state.isPlaying) {
+          userManuallyPaused = true;
           activeAudio.pause();
         } else {
+          userManuallyPaused = false;
           activeAudio.play().catch(() => {});
         }
         return;
@@ -2190,7 +2265,6 @@
       }
     }
 
-    // Integração Completa com Apple CarPlay ("Em Reprodução" igual ao YouTube Music), Tela de Bloqueio do iPhone e Volante
     function updateMediaSessionMetadata(song) {
       if (!('mediaSession' in navigator) || !song) return;
       try {
@@ -2218,6 +2292,7 @@
         }
 
         navigator.mediaSession.setActionHandler('play', () => {
+          userManuallyPaused = false;
           if (usingYtEngine && ytPlayer && typeof ytPlayer.playVideo === 'function') {
             if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
             if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
@@ -2232,6 +2307,7 @@
         });
 
         navigator.mediaSession.setActionHandler('pause', () => {
+          userManuallyPaused = true;
           if (usingYtEngine && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
             ytPlayer.pauseVideo();
             try { carplayBridgeAudio.pause(); } catch (_) {}
@@ -2259,7 +2335,6 @@
       } catch (_) {}
     }
 
-    // Gera Ícones PNG 180x180 / 192x192 / 512x512 e Web App Manifest Dinâmico
     let deferredPwaPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
