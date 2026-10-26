@@ -12,8 +12,9 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#0f0f12" />
 
-  <!-- Ícone Vetorial Embutido para a Tela de Início do iPhone -->
-  <link id="appleTouchIconLink" rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230F0F12'/><circle cx='90' cy='90' r='64' fill='%23FF0033'/><polygon points='74,58 74,122 126,90' fill='white'/></svg>" />
+  <!-- Ícone e Manifesto Oficial de Web App Instalável (iPhone Tela de Início + CarPlay Now Playing + Android PWA) -->
+  <link id="appleTouchIconLink" rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230F0F12'/><circle cx='90' cy='90' r='64' fill='%23FF0033'/><polygon points='74,58 74,122 126,90' fill='white'/></svg>" />
+  <link id="pwaManifestLink" rel="manifest" href="" />
 
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1893,7 +1894,7 @@
       }
     }
 
-    // Integração com a Tela de Bloqueio do iPhone e CarPlay (MediaSession API)
+    // Integração Completa com Apple CarPlay ("Em Reprodução"), Tela de Bloqueio do iPhone e Controles Multimídia Bluetooth/Android
     function updateMediaSessionMetadata(song) {
       if (!('mediaSession' in navigator) || !song) return;
       try {
@@ -1901,14 +1902,116 @@
           title: song.title,
           artist: song.artist,
           album: song.albumName || 'TuneVibe Music',
-          artwork: song.albumArt ? [{ src: song.albumArt, sizes: '512x512', type: 'image/jpeg' }] : []
+          artwork: song.albumArt ? [
+            { src: song.albumArt, sizes: '96x96', type: 'image/jpeg' },
+            { src: song.albumArt, sizes: '192x192', type: 'image/jpeg' },
+            { src: song.albumArt, sizes: '512x512', type: 'image/jpeg' }
+          ] : []
         });
-        navigator.mediaSession.setActionHandler('play', () => activeAudio.play());
-        navigator.mediaSession.setActionHandler('pause', () => activeAudio.pause());
+        navigator.mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          if (usingYtEngine && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+            if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+            if (typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(100);
+            ytPlayer.playVideo();
+            state.isPlaying = true;
+            navigator.mediaSession.playbackState = 'playing';
+            updatePlayerUi();
+          } else {
+            activeAudio.play().catch(() => {});
+          }
+        });
+
+        navigator.mediaSession.setActionHandler('pause', () => {
+          if (usingYtEngine && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+            ytPlayer.pauseVideo();
+            state.isPlaying = false;
+            navigator.mediaSession.playbackState = 'paused';
+            updatePlayerUi();
+          } else {
+            activeAudio.pause();
+          }
+        });
+
         navigator.mediaSession.setActionHandler('previoustrack', playPrevTrack);
         navigator.mediaSession.setActionHandler('nexttrack', playNextTrack);
+        navigator.mediaSession.setActionHandler('seekbackward', () => seekByDelta(-10));
+        navigator.mediaSession.setActionHandler('seekforward', () => seekByDelta(10));
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details && typeof details.seekTime === 'number') {
+            if (usingYtEngine && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+              ytPlayer.seekTo(details.seekTime, true);
+            } else {
+              activeAudio.currentTime = details.seekTime;
+            }
+          }
+        });
       } catch (_) {}
     }
+
+    // Gera Ícones PNG 180x180 / 192x192 / 512x512 e Web App Manifest Dinâmico para Instalar como App no iPhone e Android
+    let deferredPwaPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPwaPrompt = e;
+    });
+
+    (function initInstallablePwaManifest() {
+      try {
+        const makePngIcon = (size) => {
+          const c = document.createElement('canvas');
+          c.width = size;
+          c.height = size;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#0f0f12';
+          ctx.fillRect(0, 0, size, size);
+          ctx.fillStyle = '#ff0033';
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size * 0.36, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(size * 0.41, size * 0.33);
+          ctx.lineTo(size * 0.41, size * 0.67);
+          ctx.lineTo(size * 0.70, size * 0.50);
+          ctx.closePath();
+          ctx.fill();
+          return c.toDataURL('image/png');
+        };
+
+        const icon180 = makePngIcon(180);
+        const icon192 = makePngIcon(192);
+        const icon512 = makePngIcon(512);
+
+        const appleLink = document.getElementById('appleTouchIconLink');
+        if (appleLink) appleLink.href = icon180;
+
+        const manifestObj = {
+          name: 'TuneVibe Music',
+          short_name: 'TuneVibe',
+          description: 'TuneVibe Music Player • Áudio Completo Sem Anúncios',
+          start_url: window.location.href.split('#')[0],
+          scope: './',
+          display: 'standalone',
+          orientation: 'portrait',
+          background_color: '#0b0c10',
+          theme_color: '#0f0f12',
+          icons: [
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          ]
+        };
+
+        const mLink = document.getElementById('pwaManifestLink');
+        if (mLink) {
+          mLink.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+        }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+        }
+      } catch (_) {}
+    })();
 
     // Motor Multi-Fonte de Letras (Vagalume API + LRCLIB + Lyrics.ovh)
     async function fetchLyricsMultiSource(song) {
@@ -2627,7 +2730,15 @@
         state.activeTab = 3;
         renderCurrentTab();
       });
-      document.getElementById('btnOpenIosInstallModal').addEventListener('click', () => {
+      document.getElementById('btnOpenIosInstallModal').addEventListener('click', async () => {
+        if (deferredPwaPrompt) {
+          try {
+            deferredPwaPrompt.prompt();
+            await deferredPwaPrompt.userChoice;
+            deferredPwaPrompt = null;
+            return;
+          } catch (_) {}
+        }
         document.getElementById('modalIosGuide').classList.remove('hidden');
       });
       document.getElementById('btnCloseIosGuide').addEventListener('click', () => {
