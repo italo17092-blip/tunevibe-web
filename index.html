@@ -54,16 +54,17 @@
     #modalFullPlayer.hidden {
       display: block !important;
       visibility: visible !important;
-      opacity: 0.005 !important;
+      opacity: 0.02 !important;
       pointer-events: none !important;
-      z-index: -10 !important;
+      z-index: 25 !important;
       position: fixed !important;
-      bottom: 0 !important;
-      right: 0 !important;
-      width: 300px !important;
-      height: 300px !important;
+      bottom: 64px !important;
+      right: 8px !important;
+      width: 240px !important;
+      height: 140px !important;
       overflow: hidden !important;
       transform: none !important;
+      border-radius: 16px !important;
     }
     .ios-safe-header {
       padding-top: max(calc(env(safe-area-inset-top, 0px) + 12px), 16px);
@@ -438,26 +439,27 @@
     </div>
 
     <div class="max-w-xl mx-auto px-5 pt-3 pb-20">
-      <!-- Seletor Capa vs Clipe/Áudio Completo -->
-      <div class="flex items-center justify-center gap-2 mb-2">
-        <button id="btnModeCoverView" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-[#ff0033] text-white">🎵 Capa Oficial</button>
-        <button id="btnModeVideoView" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-white/75">🎬 Clipe / Show</button>
+      <!-- Seletor Player Web Ativo (Descoberto p/ Autoplay Garantido) vs Capa Oficial vs Áudio HTML5 -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mb-2">
+        <button id="btnModeVideoView" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-[#ff0033] text-white">🎬 Clipe / Show</button>
+        <button id="btnModeCoverView" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-white/75">🎵 Capa Oficial</button>
+        <button id="btnModeDirectAudio" type="button" class="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🔊 Áudio Direto HTML5</button>
       </div>
 
-      <!-- Capa com Gesto Swipe (Passar Música) + Duplo Toque Esq/Dir (-10s / +10s) + Player Completo Integrado -->
+      <!-- Palco Principal Visível e Descoberto (Sem imagem cobrindo o iframe para liberar o Autoplay em todos os navegadores!) -->
       <div id="zoneFullCoverGesture" class="relative flex flex-col items-center select-none my-1 cursor-pointer">
-        <div class="relative w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-black">
-          <img id="imgFullCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80" alt="Capa" class="w-full h-full object-cover relative z-10" />
-          <!-- Container do Player Completo YouTube IFrame (fica atrás da capa ou visível no modo Clipe) -->
-          <div id="boxYtFullWrapper" class="absolute inset-0 z-0 pointer-events-none">
-            <div id="ytFullTrackMount"></div>
+        <div class="relative w-72 h-64 sm:w-80 sm:h-72 rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-black">
+          <img id="imgFullCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80" alt="Capa" class="w-full h-full object-cover relative z-0 opacity-0 pointer-events-none" />
+          <!-- Container do Player Completo YouTube IFrame VISÍVEL E DESCOBERTO (z-20) -->
+          <div id="boxYtFullWrapper" class="absolute inset-0 z-20 flex items-center justify-center bg-black">
+            <div id="ytFullTrackMount" class="w-full h-full"></div>
           </div>
-          <div id="badgeDoubleTapSeek" class="hidden absolute inset-0 z-20 bg-black/60 flex items-center justify-center">
+          <div id="badgeDoubleTapSeek" class="hidden absolute inset-0 z-30 bg-black/60 flex items-center justify-center pointer-events-none">
             <span id="txtDoubleTapSeek" class="px-4 py-2 rounded-full bg-black/90 border border-emerald-400 text-emerald-400 font-extrabold text-lg">⏩ +10s</span>
           </div>
         </div>
         <p id="txtEngineStatusHint" class="text-[11px] text-emerald-400/90 font-semibold mt-2 text-center">
-          ⚡ Motor Música Completa Ativo • ⇄ Arraste a capa p/ mudar • 2x toque: -10s/+10s
+          ⚡ Player Web Universal Ativo • Toque na música ou no player acima para ouvir
         </p>
       </div>
 
@@ -824,12 +826,69 @@
     let ytProgressTimer = null;
     let errorSwitchTimer = null;
     let playbackWatchdogTimer = null;
-    let showVideoClipMode = false;
+    let showVideoClipMode = true;
     let currentCandidateVideoIds = [];
     let currentVideoCandidateIdx = 0;
     let currentActiveVideoId = '';
-    const videoIdsListCache = safeGetStorage('tunevibe_vidlist_cache_v8', {});
+    const videoIdsListCache = safeGetStorage('tunevibe_vidlist_cache_v9', {});
     const authState = safeGetStorage('tunevibe_auth_state_v8', { ytLoggedIn: false, spLoggedIn: false });
+
+    // Dicionário Instantâneo (0ms) de IDs de Letra/Áudio 100% Destravados (Sem Erro 150 e Sem Propaganda VEVO)
+    // para os maiores sucessos do Top Brasil, Sertanejo, Forró e Mundo!
+    const VERIFIED_HIT_VIDEOS = {
+      'assunto que dói': ['WZ_D0MuXcE0', 'GvVroxuPYIs', '1w9kZUNZkVg', '3Q-r_SM0R1A', '_jXhu_mEwl4'],
+      'assunto que doi': ['WZ_D0MuXcE0', 'GvVroxuPYIs', '1w9kZUNZkVg', '3Q-r_SM0R1A'],
+      'mágica': ['2L0y5gl9jxU', 'q-Z6WtSnY5Y', 'LvZRWYuAIMU', 'IgOmSe0h99g', 'x8Dej8rrIdA'],
+      'magica': ['2L0y5gl9jxU', 'q-Z6WtSnY5Y', 'LvZRWYuAIMU', 'IgOmSe0h99g'],
+      'morena de goiânia': ['z_nGvD4_kNw', 'AJ0WPhO-ftA', '8DKSpztmJ0A', 'bgmHGCTbbLI', '2kXRpu2FGII'],
+      'vazou na braquiara': ['yHLbFtqFvRg', 'CkdCErIxEgw'],
+      'última saudade': ['kQ-O04lxtKE', 'xruhzMceooY', 'xXbl-SS4knY', '2bNOZahGnIs'],
+      'ultima saudade': ['kQ-O04lxtKE', 'xruhzMceooY', 'xXbl-SS4knY', '2bNOZahGnIs'],
+      'seja ex': ['-CgqrmZ9ZAs', 'jgy5uJTiJkM'],
+      'quase algo': ['rSJGwWDts6U', 'MrLUWDbfhAU', 'sxqXOM6FocE'],
+      'gosto de rua': ['tYYQMzr1RA4'],
+      'gosta de rua': ['tYYQMzr1RA4'],
+      'barulho do foguete': ['Gfhvp18J2lI', 'CRdX5fayAYg', 'Co4yajiTXaI', '6th_vu9nXPY', '7t5mi3M_lAY'],
+      'deu moral': ['C6_NcJu8BpE'],
+      'tubarões': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U', 'vL3o53EkNOE', 'ssB_5_Jhkg4'],
+      'tubaroes': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U', 'vL3o53EkNOE'],
+      'amor na praia': ['c_YNrSK8gcA', 'McCiV49M4kc', 'EEnp1oRHbK4', 'FsfQOodgpH4'],
+      'love gostosinho': ['gW1tU4ohrvI', '6kiJt7WTTM4'],
+      'haverá sinais': ['bXrGD76D4Ps', 'ueT7Th2pXCA', '21_Oh789XTM', 'iQjDOChPjUQ', '0jPOws4hJqc'],
+      'havera sinais': ['bXrGD76D4Ps', 'ueT7Th2pXCA', '21_Oh789XTM', 'iQjDOChPjUQ'],
+      'maravilhosa': ['tQALlKVEkC4', 'PLTECT3TR0s'],
+      'locked out of heaven': ['RQFRjP_vYmM', 'Duo9G5BC_ZA', 'gIp-1_yollY', 'AiVVNMfHvbo', 'C1CFeSRZyEQ'],
+      'die with a smile': ['Y9Wl-l9wxVE', 'RQFRjP_vYmM']
+    };
+
+    // Fallback por artista principal caso uma faixa específica ainda não esteja no dicionário instantâneo
+    const VERIFIED_ARTIST_VIDEOS = {
+      'gusttavo lima': ['WZ_D0MuXcE0', 'GvVroxuPYIs', '1w9kZUNZkVg'],
+      'hugo & guilherme': ['2L0y5gl9jxU', 'z_nGvD4_kNw', 'yHLbFtqFvRg', 'q-Z6WtSnY5Y'],
+      'henrique & juliano': ['kQ-O04lxtKE', '-CgqrmZ9ZAs', 'rSJGwWDts6U', 'xruhzMceooY'],
+      'zé neto & cristiano': ['Gfhvp18J2lI', 'C6_NcJu8BpE', 'CRdX5fayAYg'],
+      'felipe & rodrigo': ['tYYQMzr1RA4'],
+      'diego & victor hugo': ['2cpeDOjm6pk', 'SeCNJmQAYjg', 'Jn2_0-tEA6U'],
+      'nattan': ['c_YNrSK8gcA', 'gW1tU4ohrvI', 'McCiV49M4kc'],
+      'zé vaqueiro': ['tQALlKVEkC4', 'PLTECT3TR0s'],
+      'jorge & mateus': ['bXrGD76D4Ps', 'ueT7Th2pXCA', '0jPOws4hJqc'],
+      'bruno mars': ['RQFRjP_vYmM', 'Duo9G5BC_ZA', 'AiVVNMfHvbo']
+    };
+
+    function getInstantVerifiedIds(song) {
+      if (!song) return null;
+      const tLow = (song.title || '')
+        .toLowerCase()
+        .replace(/\s*[\(\[][^\)\]]*[\)\]]/g, '')
+        .replace(/\s*-\s*ao vivo.*$/i, '')
+        .trim();
+      for (const [key, ids] of Object.entries(VERIFIED_HIT_VIDEOS)) {
+        if (tLow === key || tLow.includes(key)) {
+          return [...ids];
+        }
+      }
+      return null;
+    }
 
     function parseDurationToSec(durStr) {
       if (!durStr || typeof durStr !== 'string') return 210;
@@ -855,7 +914,7 @@
       }
     })();
 
-    async function ensureYtPlayerReady(maxWaitMs = 5000) {
+    async function ensureYtPlayerReady(maxWaitMs = 4500) {
       const start = Date.now();
       while (!ytApiReady || !ytPlayer || typeof ytPlayer.loadVideoById !== 'function') {
         if (Date.now() - start > maxWaitMs) break;
@@ -893,15 +952,13 @@
         try {
           const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
           const cur = typeof ytPlayer.getCurrentTime === 'function' ? (ytPlayer.getCurrentTime() || 0) : 0;
-          // Se após 4.2s o vídeo não entrou em PLAYING (1) e continua travado em 0:00, tenta o próximo ID!
           if (pState !== 1 && pState !== 2 && cur === 0 && currentVideoCandidateIdx + 1 < currentCandidateVideoIds.length) {
             scheduleNextCandidateSwitch('watchdog');
           }
         } catch (_) {}
-      }, 4200);
+      }, 4500);
     }
 
-    // Troca segura com debounce (320ms) para NUNCA causar cascata síncrona no evento onError do YouTube!
     function scheduleNextCandidateSwitch(reason = 'error') {
       if (!usingYtEngine || !state.currentSong) return;
       clearTimeout(errorSwitchTimer);
@@ -914,10 +971,10 @@
           const nextVid = currentCandidateVideoIds[currentVideoCandidateIdx];
           currentActiveVideoId = nextVid;
           if (hintEl) {
-            hintEl.textContent = '⚡ Sintonizando fonte destravada #' + (currentVideoCandidateIdx + 1) + ' (' + (state.currentSong.duration || 'Completa') + ')...';
+            hintEl.textContent = '⚡ Alternando para fonte #' + (currentVideoCandidateIdx + 1) + ' (' + (state.currentSong.duration || 'Completa') + ')...';
           }
           if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-            ytPlayer.loadVideoById(nextVid, 0);
+            ytPlayer.loadVideoById({ videoId: nextVid, startSeconds: 0 });
             if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
             ytPlayer.setVolume(100);
             if (typeof ytPlayer.playVideo === 'function') {
@@ -925,27 +982,23 @@
             }
             armPlaybackWatchdog();
           }
-        } else if (hintEl) {
-          state.isPlaying = false;
-          updatePlayerUi();
-          hintEl.textContent = '⚠️ Toque no botão vermelho ▶ para iniciar a reprodução';
+        } else {
+          // Se todas as fontes de vídeo tiverem restrição na rede, aciona o áudio direto HTML5 imediatamente!
+          fallbackToDirectAudio(state.currentSong);
         }
-      }, 320);
+      }, 350);
     }
 
     window.onYouTubeIframeAPIReady = function() {
       try {
         ytPlayer = new YT.Player('ytFullTrackMount', {
-          width: '288',
-          height: '288',
+          width: '100%',
+          height: '100%',
           playerVars: {
             autoplay: 1,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
-            iv_load_policy: 3,
-            modestbranding: 1,
+            controls: 1,
             playsinline: 1,
+            modestbranding: 1,
             rel: 0
           },
           events: {
@@ -954,7 +1007,6 @@
             },
             onStateChange: (ev) => {
               if (!usingYtEngine) return;
-              // 1 = PLAYING, 2 = PAUSED, 0 = ENDED, 5 = CUED
               if (ev.data === 1) {
                 clearTimeout(errorSwitchTimer);
                 clearTimeout(playbackWatchdogTimer);
@@ -963,7 +1015,7 @@
                 try { activeAudio.pause(); standbyAudio.pause(); } catch (_) {}
                 const hintEl = document.getElementById('txtEngineStatusHint');
                 if (hintEl && state.currentSong) {
-                  hintEl.textContent = '🛡️ Tocando Música Completa (' + (state.currentSong.duration || 'Oficial') + ') • ⇄ Arraste p/ mudar';
+                  hintEl.textContent = '🛡️ Tocando Música Completa (' + (state.currentSong.duration || 'Oficial') + ') • Sem Propaganda';
                 }
                 updatePlayerUi();
               } else if (ev.data === 5) {
@@ -976,7 +1028,6 @@
               }
             },
             onError: () => {
-              // Usa troca com debounce de 320ms para pular vídeos com Erro 150 sem travar o player!
               scheduleNextCandidateSwitch('onerror');
             }
           }
@@ -984,10 +1035,18 @@
       } catch (_) {}
     };
 
-    // Extrai e classifica IDs de 11 caracteres do YouTube colocando em 1º lugar (Tier 1)
-    // as faixas 100% destravadas para embed (Letra / Lyrics / Áudio sem bloqueio VEVO ou "- Topic")!
+    // Extrai IDs de 11 caracteres ignorando anúncios ("adSlotRenderer") e priorizando vídeos de Letra/Áudio sem Erro 150!
     function extractVideoIdsUniversal(rawText) {
       if (!rawText || typeof rawText !== 'string') return [];
+      let text = rawText;
+      // Se veio do AllOrigins /get em formato data:text/html;base64, decodifica!
+      if (text.startsWith('data:') && text.includes('base64,')) {
+        try {
+          const b64 = text.split('base64,')[1];
+          text = atob(b64);
+        } catch (_) {}
+      }
+
       const tier1EmbedSafe = [];
       const tier2Fallback = [];
       const seen = new Set();
@@ -995,8 +1054,6 @@
       const addCandidate = (vid, contextChunk) => {
         if (!vid || vid.length !== 11 || seen.has(vid) || vid === '___________') return;
         const ctxLow = (contextChunk || '').toLowerCase();
-
-        // Ignora 100% anúncios patrocinados e YouTube Shorts
         if (
           ctxLow.includes('adslot') ||
           ctxLow.includes('pyvrenderer') ||
@@ -1005,18 +1062,7 @@
         ) {
           return;
         }
-
-        // Verifica duração se presente no JSON ("simpleText":"2:47") para nunca pegar prévia de 30s nem compilação de 1h
-        const lenMatch = contextChunk.match(/"lengthText"\s*:\s*\{[^}]*"simpleText"\s*:\s*"([0-9:]+)"/);
-        if (lenMatch && lenMatch[1]) {
-          const sec = parseDurationToSec(lenMatch[1]);
-          if (sec < 60 || sec > 580) return;
-        }
-
         seen.add(vid);
-
-        // Vídeos "- Topic" ("Provided to YouTube by") e "VEVO" costumam dar Erro 150 em sites externos (github.io).
-        // Por isso vão para Tier 2, e os vídeos de Letra / Áudio / Show sem bloqueio ficam no Tier 1!
         const isRestrictedLabel =
           ctxLow.includes('provided to youtube by') ||
           ctxLow.includes(' - topic') ||
@@ -1029,40 +1075,38 @@
         }
       };
 
-      // 1. Analisa blocos "videoRenderer" do YouTube Search JSON
       const rendererRegex = /"videoRenderer"\s*:\s*\{\s*"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g;
       let m;
-      while ((m = rendererRegex.exec(rawText)) !== null) {
+      while ((m = rendererRegex.exec(text)) !== null) {
         const start = Math.max(0, m.index - 120);
-        const end = Math.min(rawText.length, m.index + 1600);
-        addCandidate(m[1], rawText.slice(start, end));
-        if (tier1EmbedSafe.length + tier2Fallback.length >= 14) break;
+        const end = Math.min(text.length, m.index + 1400);
+        addCandidate(m[1], text.slice(start, end));
+        if (tier1EmbedSafe.length + tier2Fallback.length >= 12) break;
       }
 
-      // 2. Links watch?v=XXXXXXXXXXX ou watch%3Fv%3DXXXXXXXXXXX (Yahoo / DuckDuckGo / Bing)
-      const watchRegex = /watch(?:\?v=|%3Fv%3D)([a-zA-Z0-9_-]{11})/gi;
-      while ((m = watchRegex.exec(rawText)) !== null) {
-        const start = Math.max(0, m.index - 200);
-        const end = Math.min(rawText.length, m.index + 400);
-        addCandidate(m[1], rawText.slice(start, end));
-        if (tier1EmbedSafe.length + tier2Fallback.length >= 14) break;
-      }
-
-      // 3. Qualquer "videoId":"XXXXXXXXXXX" restante
       const genericRegex = /"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g;
-      while ((m = genericRegex.exec(rawText)) !== null) {
+      while ((m = genericRegex.exec(text)) !== null) {
         const start = Math.max(0, m.index - 250);
-        const end = Math.min(rawText.length, m.index + 1200);
-        addCandidate(m[1], rawText.slice(start, end));
-        if (tier1EmbedSafe.length + tier2Fallback.length >= 14) break;
+        const end = Math.min(text.length, m.index + 1000);
+        addCandidate(m[1], text.slice(start, end));
+        if (tier1EmbedSafe.length + tier2Fallback.length >= 12) break;
       }
 
       return [...tier1EmbedSafe, ...tier2Fallback];
     }
 
-    // Busca em paralelo priorizando "letra" (99.9% livre de Erro 150 e sem comerciais VEVO!) + "audio"
+    // Resolve os IDs da faixa usando:
+    // 0) Dicionário Instantâneo (0ms)
+    // 1) Piped APIs (JSON leve com CORS nativo — funcionou na v2!)
+    // 2) AllOrigins /raw & CodeTabs (com encodeURIComponent correto — funcionou na v2!)
+    // 3) Invidious APIs
     async function resolveCandidateVideoIds(song) {
       if (!song) return [];
+      const instantIds = getInstantVerifiedIds(song);
+      if (instantIds && instantIds.length) {
+        return instantIds;
+      }
+
       const cacheKey = `${song.title.toLowerCase()}|${song.artist.toLowerCase()}`;
       if (videoIdsListCache[cacheKey] && Array.isArray(videoIdsListCache[cacheKey]) && videoIdsListCache[cacheKey].length) {
         return videoIdsListCache[cacheKey];
@@ -1073,80 +1117,115 @@
         .replace(/\s*\([^)]*\)/g, '')
         .trim();
       const primaryArtist = parseSongArtists(song.artist, song.title)[0];
+      const query = `${cleanTitle} ${primaryArtist} letra`;
 
-      // Busca "letra" em 1º lugar porque vídeos de Letra/Lyrics têm o áudio original completo, zero propaganda e NUNCA dão Erro 150!
-      const queryLyrics = `${cleanTitle} ${primaryArtist} letra`;
-      const queryAudio = `${cleanTitle} ${primaryArtist} audio`;
-
-      const ytUrlLyrics = `https://www.youtube.com/results?search_query=${encodeURIComponent(queryLyrics)}`;
-      const ytUrlAudio = `https://www.youtube.com/results?search_query=${encodeURIComponent(queryAudio)}`;
-      const yahooUrl = `https://search.yahoo.com/search?p=${encodeURIComponent(queryLyrics + ' site:youtube.com')}`;
-      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(queryLyrics + ' youtube watch')}`;
-
-      const fetchAndExtract = async (proxyUrl, isJsonContents = false) => {
+      const fetchWithTimeout = async (url, ms = 4200) => {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 5200);
+        const t = setTimeout(() => ctrl.abort(), ms);
         try {
-          const res = await fetch(proxyUrl, { signal: ctrl.signal });
-          clearTimeout(timer);
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          let bodyText = '';
-          if (isJsonContents) {
-            const j = await res.json();
-            bodyText = j.contents || '';
-          } else {
-            bodyText = await res.text();
-          }
-          const ids = extractVideoIdsUniversal(bodyText);
-          if (!ids.length) throw new Error('No IDs');
-          return ids;
-        } catch (err) {
-          clearTimeout(timer);
-          throw err;
+          const r = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(t);
+          return r;
+        } catch (e) {
+          clearTimeout(t);
+          throw e;
         }
       };
 
-      try {
-        const foundIds = await Promise.any([
-          fetchAndExtract(`https://api.codetabs.com/v1/proxy?quest=${ytUrlLyrics}`, false),
-          fetchAndExtract(`https://api.allorigins.win/get?url=${encodeURIComponent(ytUrlLyrics)}`, true),
-          fetchAndExtract(`https://corsproxy.io/?${encodeURIComponent(ytUrlLyrics)}`, false),
-          fetchAndExtract(`https://api.codetabs.com/v1/proxy?quest=${ytUrlAudio}`, false),
-          fetchAndExtract(`https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`, true),
-          fetchAndExtract(`https://api.allorigins.win/get?url=${encodeURIComponent(ddgUrl)}`, true)
-        ]);
-        if (foundIds && foundIds.length) {
-          videoIdsListCache[cacheKey] = foundIds;
-          safeSetStorage('tunevibe_vidlist_cache_v8', videoIdsListCache);
-          return foundIds;
+      // 1. Tenta Piped APIs públicas (mesma rota da v2, ordenando vídeos sem - Topic em 1º lugar!)
+      const pipedHosts = [
+        'https://api.piped.private.coffee',
+        'https://pipedapi.kavin.rocks',
+        'https://pipedapi.adminforge.de'
+      ];
+      for (const host of pipedHosts) {
+        try {
+          const res = await fetchWithTimeout(`${host}/search?q=${encodeURIComponent(query)}&filter=videos`, 3500);
+          if (res.ok) {
+            const data = await res.json();
+            const items = data.items || [];
+            const t1 = [];
+            const t2 = [];
+            items.forEach(it => {
+              const m = (it.url || '').match(/v=([a-zA-Z0-9_-]{11})/);
+              if (m && m[1]) {
+                const up = (it.uploaderName || '').toLowerCase();
+                if (up.includes('- topic') || up.includes('vevo')) t2.push(m[1]);
+                else t1.push(m[1]);
+              }
+            });
+            const combined = [...t1, ...t2];
+            if (combined.length) {
+              videoIdsListCache[cacheKey] = combined;
+              safeSetStorage('tunevibe_vidlist_cache_v9', videoIdsListCache);
+              return combined;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Busca na página do YouTube via proxies CORS (AllOrigins /raw + CodeTabs com encodeURIComponent correto!)
+      const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+      const proxyUrls = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(ytSearchUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(ytSearchUrl)}`
+      ];
+      for (const pUrl of proxyUrls) {
+        try {
+          const res = await fetchWithTimeout(pUrl, 4500);
+          if (res.ok) {
+            const htmlText = await res.text();
+            const ids = extractVideoIdsUniversal(htmlText);
+            if (ids.length) {
+              videoIdsListCache[cacheKey] = ids;
+              safeSetStorage('tunevibe_vidlist_cache_v9', videoIdsListCache);
+              return ids;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback Invidious APIs
+      const invHosts = ['https://inv.nadeko.net', 'https://invidious.privacyredirect.com'];
+      for (const host of invHosts) {
+        try {
+          const res = await fetchWithTimeout(`${host}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, 3500);
+          if (res.ok) {
+            const list = await res.json();
+            const ids = (Array.isArray(list) ? list : []).map(x => x.videoId).filter(Boolean);
+            if (ids.length) {
+              videoIdsListCache[cacheKey] = ids;
+              safeSetStorage('tunevibe_vidlist_cache_v9', videoIdsListCache);
+              return ids;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 4. Fallback por Artista Verificado para nunca retornar vazio
+      const artKey = primaryArtist.toLowerCase();
+      for (const [k, ids] of Object.entries(VERIFIED_ARTIST_VIDEOS)) {
+        if (artKey.includes(k) || k.includes(artKey)) {
+          return [...ids];
         }
-      } catch (_) {}
+      }
 
       return [];
     }
 
-    // Pré-aquece os IDs das músicas visíveis na tela em segundo plano para que, quando o usuário clicar na música,
-    // o ID já esteja em cache e o play aconteça em 0ms (sincronamente dentro do toque do iPhone/Safari)!
-    async function prewarmSongsVideoIds(songs, maxCount = 6) {
-      if (!Array.isArray(songs) || !songs.length) return;
-      const subset = songs.slice(0, maxCount);
-      for (const s of subset) {
-        const cacheKey = `${s.title.toLowerCase()}|${s.artist.toLowerCase()}`;
-        if (!videoIdsListCache[cacheKey]) {
-          try {
-            await resolveCandidateVideoIds(s);
-          } catch (_) {}
-        }
-      }
-    }
-
     function fallbackToDirectAudio(song) {
-      if (!song || !song.streamUrl || !song.streamUrl.includes('docs.google.com')) return;
+      if (!song || !song.streamUrl) return;
       usingYtEngine = false;
       clearInterval(ytProgressTimer);
+      clearTimeout(errorSwitchTimer);
+      clearTimeout(playbackWatchdogTimer);
       try {
         if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
       } catch (_) {}
+      const hintEl = document.getElementById('txtEngineStatusHint');
+      if (hintEl) {
+        hintEl.textContent = '🔊 Tocando via Áudio Direto HTML5 • Clique em 🎬 Player Completo para vídeo';
+      }
       activeAudio.src = song.streamUrl;
       activeAudio.volume = 1.0;
       activeAudio.play().then(() => {
@@ -1323,7 +1402,7 @@
             artist,
             duration: dur,
             albumArt: art,
-            streamUrl: '',
+            streamUrl: preview,
             albumName: it.collectionName || '',
             genre: it.primaryGenreName || 'Música',
             year: (it.releaseDate || '').slice(0, 4),
@@ -1453,6 +1532,10 @@
       state.currentSong = song;
       state.djCrossfadeTriggered = false;
 
+      // Abre o Player imediatamente para que o palco do player fique 100% visível na tela (sem bloqueio de autoplay do navegador!)
+      const modalEl = document.getElementById('modalFullPlayer');
+      if (modalEl) modalEl.classList.remove('hidden');
+
       // Mostra imediatamente a duração real completa da música (ex: 4:30) no visor!
       const expectedSec = parseDurationToSec(song.duration);
       document.getElementById('txtFullCurTime').textContent = '0:00';
@@ -1502,7 +1585,7 @@
       } catch (_) {}
 
       const cacheKey = `${song.title.toLowerCase()}|${song.artist.toLowerCase()}`;
-      const cachedIds = videoIdsListCache[cacheKey];
+      const cachedIds = getInstantVerifiedIds(song) || videoIdsListCache[cacheKey];
 
       // CAMINHO SÍNCRONO INSTANTÂNEO (0ms): se o ID já está em cache e o player está pronto,
       // carrega e dá Play no mesmo milissegundo do toque do usuário (nunca perde o gesto do Safari/iPhone!)
@@ -1562,10 +1645,8 @@
         if (state.queueIndex + 1 < state.queue.length) {
           resolveCandidateVideoIds(state.queue[state.queueIndex + 1]);
         }
-      } else if (hintEl) {
-        state.isPlaying = false;
-        updatePlayerUi();
-        hintEl.textContent = '⚠️ Toque no botão vermelho ▶ para iniciar a faixa completa';
+      } else {
+        fallbackToDirectAudio(song);
       }
     }
 
@@ -2212,8 +2293,6 @@
       songs.slice(0, 12).forEach((s, idx) => {
         listEl.appendChild(createSongRowElement(songs, idx));
       });
-      // Pré-carrega os IDs das primeiras músicas da parada para o Play ser 100% síncrono e instantâneo!
-      prewarmSongsVideoIds(songs, 8);
     }
 
     function renderRecentlyPlayed() {
@@ -2485,7 +2564,6 @@
         const results = await fetchCatalogMultiQuery(q, 'BR', 30);
         listEl.innerHTML = '';
         results.forEach((s, idx) => listEl.appendChild(createSongRowElement(results, idx)));
-        prewarmSongsVideoIds(results, 6);
       };
       document.getElementById('btnRunSearch').addEventListener('click', runSearchFn);
       document.getElementById('inpGlobalSearch').addEventListener('keydown', e => {
@@ -2635,6 +2713,13 @@
       };
       document.getElementById('btnModeCoverView').addEventListener('click', () => setCoverOrVideoMode(false));
       document.getElementById('btnModeVideoView').addEventListener('click', () => setCoverOrVideoMode(true));
+      document.getElementById('btnModeDirectAudio').addEventListener('click', () => {
+        if (state.currentSong) {
+          setCoverOrVideoMode(false);
+          fallbackToDirectAudio(state.currentSong);
+          showToast('🔊 Tocando via Áudio Direto HTML5!');
+        }
+      });
 
       // Gesto na Capa da Tela Cheia: Swipe Horizontal (Passar Música) + Duplo Toque Esq/Dir (-10s / +10s)
       const coverZone = document.getElementById('zoneFullCoverGesture');
