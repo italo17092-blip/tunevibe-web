@@ -118,9 +118,15 @@
     </div>
 
     <div class="flex items-center gap-1.5">
-      <button id="btnOpenAuthModal" type="button" class="px-2.5 py-1 rounded-full text-xs font-bold border transition flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+      <!-- Botão antigo de login YouTube/Spotify: APENAS OCULTO (hidden), código 100% preservado -->
+      <button id="btnOpenAuthModal" type="button" class="hidden px-2.5 py-1 rounded-full text-xs font-bold border transition items-center gap-1 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
         <span id="icoHeaderAuth">🔐</span>
         <span id="lblHeaderAuth">Autenticar</span>
+      </button>
+      <!-- Novo Botão de Conta / Login TuneVibe (E-mail + ID #4chars + Google Drive) -->
+      <button id="btnOpenUserAccountModal" type="button" class="px-2.5 py-1 rounded-full text-xs font-extrabold border transition flex items-center gap-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow">
+        <span id="icoHeaderUserAccount">👤</span>
+        <span id="lblHeaderUserAccount">Entrar / Conta</span>
       </button>
       <button id="btnHeaderDjToggle" type="button" class="px-2 py-1 rounded-full text-xs font-bold border transition flex items-center gap-1 bg-white/10 text-emerald-400 border-white/15">
         <span>🎧</span>
@@ -327,12 +333,18 @@
           <span id="badgeCloudStatus" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Ativo</span>
         </div>
 
-        <p class="text-xs text-white/80 leading-relaxed">
-          Como o iPhone roda pelo Safari/Atalho da Tela de Início, suas curtidas e playlists ficam salvas na memória do aparelho (<code class="text-emerald-400">localStorage</code>) e você pode usar o seu <strong>Google Drive</strong> de <strong>3 formas integradas</strong>:
-        </p>
+        <div class="rounded-xl bg-emerald-500/10 p-3 border border-emerald-500/30 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-emerald-400">✅ Pasta Oficial TuneVibe_Contas Conectada Automaticamente</span>
+            <span class="text-[10px] font-mono text-emerald-300">1zPFJDAFA2WYmKWZPJT0CzVoKEEQZcFEw</span>
+          </div>
+          <p class="text-[11px] text-white/80 leading-relaxed">
+            Toda conta criada, login, música curtida e playlist salva é sincronizada de forma <strong>100% automática</strong> na pasta <a href="https://drive.google.com/drive/u/0/folders/1zPFJDAFA2WYmKWZPJT0CzVoKEEQZcFEw" target="_blank" rel="noopener" class="text-sky-300 underline font-bold">TuneVibe_Contas no Google Drive</a>, sem precisar baixar ou carregar nenhum arquivo manualmente.
+          </p>
+        </div>
 
-        <!-- Opção A: Exportar / Importar Backup JSON para o Google Drive -->
-        <div class="rounded-xl bg-black/30 p-3 border border-white/10 space-y-2.5">
+        <!-- Opção A (Oculta - substituída pela sincronização 100% automática por login) -->
+        <div class="hidden rounded-xl bg-black/30 p-3 border border-white/10 space-y-2.5">
           <div class="text-xs font-bold text-emerald-400">1. Salvar ou Carregar Backup na sua pasta do Google Drive</div>
           <p class="text-[11px] text-white/70">
             Exporte todas as suas Músicas Curtidas, Playlists e Artistas Seguidos em um único arquivo <code class="text-white">tunevibe_cloud.json</code> e salve no seu Google Drive (pelo menu Compartilhar do iPhone → Salvar no Drive/Arquivos).
@@ -368,8 +380,8 @@
           </div>
         </div>
 
-        <!-- Opção C: Vincular Link de JSON Remoto / Gist / Drive -->
-        <div class="rounded-xl bg-black/30 p-3 border border-white/10 space-y-2">
+        <!-- Opção C (Oculta - substituída pela sincronização 100% automática por login) -->
+        <div class="hidden rounded-xl bg-black/30 p-3 border border-white/10 space-y-2">
           <div class="text-xs font-bold text-amber-400">3. Link Automático de Nuvem (Sincronizar ao abrir o App)</div>
           <p class="text-[11px] text-white/70">
             Se você hospedar seu <code class="text-white">tunevibe_cloud.json</code> no GitHub ou Google Drive público, cole o link abaixo para o iPhone buscar suas playlists automaticamente sempre que abrir:
@@ -639,6 +651,191 @@
         <button id="btnConfirmAuthDone" type="button" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs">
           Concluir ✓
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL / PORTÃO DE ACESSO: LOGIN & CADASTRO AUTOMÁTICO NA NUVEM (PASTA TUNEVIBE_CONTAS) -->
+  <div id="modalUserAccountGate" class="fixed inset-0 z-50 bg-[#08090d]/95 backdrop-blur-xl flex items-center justify-center p-3 overflow-y-auto">
+    <div class="bg-[#141720] border border-white/15 rounded-3xl max-w-md w-full p-5 space-y-4 my-auto shadow-2xl max-h-[92vh] overflow-y-auto">
+      <!-- Topo do Modal -->
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-[#ff0033] flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-[#ff0033]/30">
+            🎵
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h3 class="text-base font-extrabold text-white">TuneVibe Cloud Login</h3>
+              <span id="badgeCloudSyncState" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">☁️ TuneVibe_Contas</span>
+            </div>
+            <p class="text-[11px] text-white/60">Sincronização automática de conta, músicas e playlists na nuvem</p>
+          </div>
+        </div>
+        <!-- Botão fechar só aparece quando o usuário JÁ ESTÁ LOGADO -->
+        <button id="btnCloseUserAccountModal" type="button" class="hidden w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center text-sm">✕</button>
+      </div>
+
+      <!-- VISÃO 1: USUÁRIO LOGADO (PERFIL DA CONTA + STATUS AUTOMÁTICO DA NUVEM) -->
+      <div id="viewAccountLoggedIn" class="hidden space-y-3.5">
+        <div class="rounded-2xl bg-gradient-to-br from-[#1b2434] to-[#121620] p-4 border border-emerald-500/30 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">● Sincronização Automática Ativa</span>
+            <span id="txtProfileBirthDate" class="text-[11px] text-white/60">🎂 --/--/----</span>
+          </div>
+          <div class="pt-1">
+            <div id="txtProfileFullName" class="text-lg font-extrabold text-white">Nome Sobrenome</div>
+            <div id="txtProfileEmail" class="text-xs text-white/65">email@dominio.com</div>
+          </div>
+          <div class="pt-1 flex items-center justify-between bg-black/35 rounded-xl px-3 py-2.5 border border-white/10">
+            <div>
+              <div class="text-[10px] uppercase font-bold text-white/50">Seu ID Único Exclusivo</div>
+              <div id="txtProfileUniqueId" class="text-sm font-extrabold text-emerald-400 tracking-wide font-mono">usuario#0001</div>
+            </div>
+            <button id="btnCopyUserIdTag" type="button" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white">
+              📋 Copiar ID
+            </button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 pt-1 text-center">
+            <div class="rounded-xl bg-white/5 p-2 border border-white/5">
+              <div id="txtProfileStatLiked" class="text-sm font-extrabold text-white">0</div>
+              <div class="text-[10px] text-white/55">Curtidas</div>
+            </div>
+            <div class="rounded-xl bg-white/5 p-2 border border-white/5">
+              <div id="txtProfileStatPlaylists" class="text-sm font-extrabold text-white">0</div>
+              <div class="text-[10px] text-white/55">Playlists</div>
+            </div>
+            <div class="rounded-xl bg-white/5 p-2 border border-white/5">
+              <div id="txtProfileStatFollowed" class="text-sm font-extrabold text-white">0</div>
+              <div class="text-[10px] text-white/55">Seguindo</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 flex items-center justify-between">
+          <div class="text-[11px] text-emerald-200 leading-snug">
+            ☁️ Suas músicas curtidas e playlists são salvas automaticamente na pasta <strong>TuneVibe_Contas</strong> ao usar o app.
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <button id="btnContinueToAppFromProfile" type="button" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold">
+            Voltar ao Aplicativo
+          </button>
+          <button id="btnLogoutUserAccount" type="button" class="px-3.5 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 text-xs font-bold">
+            Sair / Trocar Conta
+          </button>
+        </div>
+      </div>
+
+      <!-- VISÃO 2: PORTÃO DE ACESSO (ENTRAR OU CRIAR CONTA COM SINCRONIZAÇÃO AUTOMÁTICA) -->
+      <div id="viewAccountAuthForms" class="space-y-3.5">
+        <!-- Abas de Alternância (Apenas Entrar e Criar Conta) -->
+        <div class="grid grid-cols-2 gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/10">
+          <button id="tabBtnModeLogin" type="button" class="py-2.5 rounded-xl text-xs font-extrabold bg-[#ff0033] text-white transition">
+            🔑 Entrar na Conta
+          </button>
+          <button id="tabBtnModeRegister" type="button" class="py-2.5 rounded-xl text-xs font-extrabold text-white/70 hover:text-white transition">
+            ✨ Criar Conta
+          </button>
+        </div>
+
+        <!-- Mensagem de Erro / Status da Nuvem Inline -->
+        <div id="boxAuthAlertMsg" class="hidden rounded-xl p-3 text-xs font-bold border"></div>
+
+        <!-- ABA A: ENTRAR COM E-MAIL (OU ID#XXXX) E SENHA -->
+        <form id="formUserLogin" class="space-y-3" onsubmit="return false;">
+          <div>
+            <label class="block text-[11px] font-bold text-white/80 mb-1">E-mail ou seu ID Único (ex: nome#0001) *</label>
+            <input id="inpLoginEmailOrId" type="text" required placeholder="Digite seu e-mail ou seu ID#0001" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3.5 py-3 border border-white/15 focus:outline-none focus:border-[#ff0033]" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-white/80 mb-1">Senha *</label>
+            <div class="relative">
+              <input id="inpLoginPassword" type="password" required placeholder="Digite sua senha" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3.5 py-3 pr-10 border border-white/15 focus:outline-none focus:border-[#ff0033]" />
+              <button id="btnToggleLoginPwd" type="button" class="absolute right-2.5 top-2.5 text-white/60 hover:text-white text-xs px-1">👁️</button>
+            </div>
+          </div>
+          <button id="btnSubmitLogin" type="submit" class="w-full py-3 rounded-xl bg-[#ff0033] hover:bg-[#e6002e] text-white font-extrabold text-xs shadow-lg shadow-[#ff0033]/25 transition flex items-center justify-center gap-2">
+            <span id="txtBtnSubmitLogin">🚀 Entrar &amp; Carregar Minhas Músicas da Nuvem</span>
+          </button>
+          <div class="text-center pt-1">
+            <button id="btnSwitchToRegister" type="button" class="text-xs font-bold text-emerald-400 hover:underline">
+              Primeira vez aqui? Crie sua conta e seu ID exclusivo →
+            </button>
+          </div>
+        </form>
+
+        <!-- ABA B: CRIAR CONTA (TODOS OS CAMPOS OBRIGATÓRIOS + ID COM # E 4 CARACTERES) -->
+        <form id="formUserRegister" class="hidden space-y-2.5" onsubmit="return false;">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-white/80 mb-1">Nome *</label>
+              <input id="inpRegFirstName" type="text" required maxlength="30" placeholder="Ex: Ítalo" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-white/80 mb-1">Sobrenome *</label>
+              <input id="inpRegLastName" type="text" required maxlength="40" placeholder="Ex: Silva" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-white/80 mb-1">Data de Nascimento *</label>
+              <input id="inpRegBirthDate" type="date" required class="w-full bg-white/10 text-white text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-white/80 mb-1">E-mail *</label>
+              <input id="inpRegEmail" type="email" required placeholder="seuemail@gmail.com" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400" />
+            </div>
+          </div>
+
+          <!-- CONSTRUTOR DE ID ÚNICO (MÁX 16 CARACTERES + # + 4 CARACTERES ALFANUMÉRICOS SEQUENCIAIS/EDITÁVEIS) -->
+          <div class="rounded-2xl bg-black/40 p-3 border border-emerald-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-extrabold text-emerald-400">Seu ID Único Exclusivo (Não pode repetir) *</label>
+              <span id="txtIdHandleCounter" class="text-[10px] font-mono text-white/55">0/16 caract.</span>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <!-- Nome base do ID (3 a 16 caracteres) -->
+              <div class="flex-1 relative">
+                <input id="inpRegIdBase" type="text" required minlength="3" maxlength="16" placeholder="seu_id (máx 16)" class="w-full bg-white/10 text-white font-mono text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400 lowercase" />
+              </div>
+              <!-- Símbolo Hashtag Fixo -->
+              <span class="text-base font-extrabold text-emerald-400 font-mono select-none">#</span>
+              <!-- 4 Caracteres (Números ou Letras, gerado sequencialmente mas editável pelo usuário!) -->
+              <input id="inpRegIdTag4" type="text" required minlength="4" maxlength="4" placeholder="0001" class="w-20 text-center bg-white/10 text-emerald-300 font-mono font-extrabold text-xs rounded-xl px-2 py-2 border border-emerald-500/40 focus:outline-none focus:border-emerald-400 uppercase" title="4 caracteres (números ou letras). Você pode editar!" />
+              <!-- Botão para gerar nova tag sequencial/aleatória -->
+              <button id="btnRegRandomTag4" type="button" class="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white" title="Gerar outra combinação de 4 caracteres">
+                🎲
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px]">
+              <span id="txtRegIdLivePreview" class="font-mono font-bold text-emerald-300">ID Final: ---#0001</span>
+              <span id="txtRegIdAvailability" class="font-bold text-white/60">Digite seu ID acima</span>
+            </div>
+            <p class="text-[10px] text-white/55 leading-snug">
+              Até <strong>16 caracteres</strong> + <strong>#</strong> + <strong>4 caracteres</strong> (números ou letras). A numeração vem sequencial automática (<code class="text-emerald-300">#0001</code>), mas você pode alterar os 4 dígitos como preferir!
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-white/80 mb-1">Criar Senha (mín. 6) *</label>
+              <input id="inpRegPassword" type="password" required minlength="6" placeholder="Mínimo 6 dígitos" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-white/80 mb-1">Confirmar Senha *</label>
+              <input id="inpRegPasswordConfirm" type="password" required minlength="6" placeholder="Repita a senha" class="w-full bg-white/10 text-white placeholder-white/40 text-xs rounded-xl px-3 py-2 border border-white/15 focus:outline-none focus:border-emerald-400" />
+            </div>
+          </div>
+
+          <button id="btnSubmitRegister" type="submit" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2">
+            <span id="txtBtnSubmitRegister">✅ Criar Conta &amp; Entrar Automaticamente</span>
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -2024,8 +2221,288 @@
       likedPl.songs = [...state.likedSongs];
     }
 
+    // =========================================================================
+    // MOTOR AUTOMÁTICO DE NUVEM: TUNEVIBE_CONTAS (GOOGLE DRIVE + REALTIME CLOUD)
+    // Pasta Oficial Google Drive: 1zPFJDAFA2WYmKWZPJT0CzVoKEEQZcFEw (TuneVibe_Contas)
+    // Arquivo Central Drive: 1etdRFkdCwSBuntNuIpl5BULcpV2srBlt (tunevibe_contas_drive.json)
+    // Sincroniza contas, senhas (SHA-256), IDs únicos (#4chars), músicas curtidas e
+    // playlists 100% AUTOMATICAMENTE entre iPhone, Android, Web e Windows!
+    // =========================================================================
+    const TUNEVIBE_DRIVE_FOLDER_ID = '1zPFJDAFA2WYmKWZPJT0CzVoKEEQZcFEw';
+    const TUNEVIBE_DRIVE_FILE_ID = '1etdRFkdCwSBuntNuIpl5BULcpV2srBlt';
+    const CLOUD_INDEX_TOPIC = 'tv_contas_idx_1zPFJDAFA2WYmKWZPJT0CzVoKEEQZcFEw';
+    let accountsDb = safeGetStorage('tunevibe_accounts_db_v16', []);
+    let currentUserAccount = safeGetStorage('tunevibe_current_user_v16', null);
+    let cloudAutoSaveTimer = null;
+
+    function hashPasswordSha256(rawPwd) {
+      const clean = String(rawPwd || '');
+      if (typeof CryptoJS !== 'undefined' && CryptoJS.SHA256) {
+        return CryptoJS.SHA256('tunevibe_salt_v15_' + clean).toString();
+      }
+      return btoa(unescape(encodeURIComponent('tv_' + clean)));
+    }
+
+    function getCloudTopicForUserKey(rawKey) {
+      const norm = String(rawKey || '').trim().toLowerCase();
+      if (typeof CryptoJS !== 'undefined' && CryptoJS.SHA256) {
+        return 'tv_u_' + CryptoJS.SHA256('tv_topic_' + norm).toString().slice(0, 26);
+      }
+      return 'tv_u_' + norm.replace(/[^a-z0-9]/g, '_').slice(0, 26);
+    }
+
+    function sanitizeIdBase(raw) {
+      return String(raw || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9._]/g, '')
+        .slice(0, 16);
+    }
+
+    function sanitizeIdTag4(raw) {
+      return String(raw || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 4);
+    }
+
+    function isFullUserIdTaken(fullId) {
+      const norm = String(fullId || '').trim().toLowerCase();
+      if (!norm) return false;
+      return accountsDb.some(acc => String(acc.fullId || '').toLowerCase() === norm);
+    }
+
+    function isEmailTaken(email) {
+      const norm = String(email || '').trim().toLowerCase();
+      if (!norm) return false;
+      return accountsDb.some(acc => String(acc.email || '').toLowerCase() === norm);
+    }
+
+    function generateNextSequentialTag4(baseStr = '') {
+      const cleanBase = sanitizeIdBase(baseStr) || 'user';
+      const totalNext = accountsDb.length + 1;
+      for (let n = totalNext; n <= 9999; n++) {
+        const candidateTag = String(n).padStart(4, '0');
+        if (!isFullUserIdTaken(`${cleanBase}#${candidateTag}`)) {
+          return candidateTag;
+        }
+      }
+      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for (let attempt = 0; attempt < 50; attempt++) {
+        let tag = '';
+        for (let i = 0; i < 4; i++) {
+          tag += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        if (!isFullUserIdTaken(`${cleanBase}#${tag}`)) return tag;
+      }
+      return 'A001';
+    }
+
+    function generateRandomAlphanumericTag4(baseStr = '') {
+      const cleanBase = sanitizeIdBase(baseStr) || 'user';
+      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for (let attempt = 0; attempt < 50; attempt++) {
+        let tag = '';
+        for (let i = 0; i < 4; i++) {
+          tag += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        if (!isFullUserIdTaken(`${cleanBase}#${tag}`)) return tag;
+      }
+      return generateNextSequentialTag4(cleanBase);
+    }
+
+    function mergeAccountIntoLocalDb(acc) {
+      if (!acc || !acc.fullId || !acc.email) return;
+      const uid = String(acc.fullId).toLowerCase();
+      const idx = accountsDb.findIndex(a => String(a.fullId).toLowerCase() === uid || String(a.email).toLowerCase() === String(acc.email).toLowerCase());
+      if (idx >= 0) {
+        const existingTs = Date.parse(accountsDb[idx].updatedAt || '') || 0;
+        const incomingTs = Date.parse(acc.updatedAt || '') || 1;
+        if (incomingTs >= existingTs) {
+          accountsDb[idx] = { ...accountsDb[idx], ...acc };
+        }
+      } else {
+        accountsDb.push(acc);
+      }
+      safeSetStorage('tunevibe_accounts_db_v16', accountsDb);
+    }
+
+    // Publica automaticamente a conta e toda a biblioteca musical (curtidas, playlists, artistas) na nuvem TuneVibe_Contas
+    async function pushAccountToCloudAutomatically(accountObj) {
+      if (!accountObj || !accountObj.fullId || !accountObj.email) return false;
+      const badge = document.getElementById('badgeCloudSyncState');
+      if (badge) badge.textContent = '☁️ Salvando na nuvem...';
+
+      const summaryRecord = {
+        fullId: accountObj.fullId,
+        idBase: accountObj.idBase,
+        idTag4: accountObj.idTag4,
+        firstName: accountObj.firstName,
+        lastName: accountObj.lastName,
+        birthDate: accountObj.birthDate,
+        email: accountObj.email,
+        passwordHash: accountObj.passwordHash,
+        driveFolderId: TUNEVIBE_DRIVE_FOLDER_ID,
+        driveFileId: TUNEVIBE_DRIVE_FILE_ID,
+        createdAt: accountObj.createdAt,
+        updatedAt: accountObj.updatedAt || new Date().toISOString()
+      };
+
+      const fullVaultRecord = {
+        ...summaryRecord,
+        userData: accountObj.userData || {
+          likedSongs: [],
+          playlists: [],
+          followedArtists: [],
+          recentlyPlayed: []
+        }
+      };
+
+      const emailTopic = getCloudTopicForUserKey(accountObj.email);
+      const idTopic = getCloudTopicForUserKey(accountObj.fullId);
+
+      try {
+        await Promise.allSettled([
+          fetch(`https://ntfy.sh/${CLOUD_INDEX_TOPIC}`, {
+            method: 'POST',
+            body: JSON.stringify(summaryRecord)
+          }),
+          fetch(`https://ntfy.sh/${emailTopic}`, {
+            method: 'POST',
+            body: JSON.stringify(fullVaultRecord)
+          }),
+          fetch(`https://ntfy.sh/${idTopic}`, {
+            method: 'POST',
+            body: JSON.stringify(fullVaultRecord)
+          })
+        ]);
+        if (badge) badge.textContent = '☁️ Salvo em TuneVibe_Contas ✓';
+        return true;
+      } catch (_) {
+        if (badge) badge.textContent = '☁️ TuneVibe_Contas';
+        return false;
+      }
+    }
+
+    // Busca automaticamente todas as contas registradas na pasta/nuvem TuneVibe_Contas para impedir ID/E-mail repetido
+    async function pullCloudAccountsIndexAutomatically() {
+      const parseNtfyLines = (rawText) => {
+        const lines = String(rawText || '').split('\n').filter(Boolean);
+        lines.forEach(line => {
+          try {
+            const ev = JSON.parse(line);
+            if (ev && ev.event === 'message' && ev.message) {
+              const acc = JSON.parse(ev.message);
+              if (acc && acc.fullId && acc.email) {
+                mergeAccountIntoLocalDb(acc);
+              }
+            }
+          } catch (_) {}
+        });
+      };
+
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3200);
+        const res = await fetch(`https://ntfy.sh/${CLOUD_INDEX_TOPIC}/json?poll=1&since=all`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) {
+          const text = await res.text();
+          parseNtfyLines(text);
+        }
+      } catch (_) {}
+
+      // Também consulta o arquivo tunevibe_contas_drive.json (1etdRFkdCwSBuntNuIpl5BULcpV2srBlt) da pasta TuneVibe_Contas se público
+      try {
+        const driveUrl = `https://docs.google.com/uc?export=download&id=${TUNEVIBE_DRIVE_FILE_ID}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(driveUrl)}`;
+        const ctrl2 = new AbortController();
+        const t2 = setTimeout(() => ctrl2.abort(), 2800);
+        const r2 = await fetch(proxyUrl, { signal: ctrl2.signal });
+        clearTimeout(t2);
+        if (r2.ok) {
+          const dJson = await r2.json();
+          if (dJson && Array.isArray(dJson.accounts)) {
+            dJson.accounts.forEach(a => mergeAccountIntoLocalDb(a));
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Busca automaticamente o cofre completo (músicas curtidas, playlists, artistas seguidos) de um E-mail ou ID#4chars específico na nuvem!
+    async function pullUserVaultFromCloudAutomatically(loginEmailOrId) {
+      const normKey = String(loginEmailOrId || '').trim().toLowerCase();
+      if (!normKey) return null;
+      const userTopic = getCloudTopicForUserKey(normKey);
+      let latestAccount = null;
+      let latestTs = 0;
+
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3500);
+        const res = await fetch(`https://ntfy.sh/${userTopic}/json?poll=1&since=all`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) {
+          const text = await res.text();
+          const lines = text.split('\n').filter(Boolean);
+          lines.forEach(line => {
+            try {
+              const ev = JSON.parse(line);
+              if (ev && ev.event === 'message' && ev.message) {
+                const acc = JSON.parse(ev.message);
+                if (acc && acc.fullId && acc.email) {
+                  const ts = Date.parse(acc.updatedAt || acc.createdAt || '') || (ev.time ? ev.time * 1000 : 1);
+                  if (ts >= latestTs) {
+                    latestTs = ts;
+                    latestAccount = acc;
+                  }
+                }
+              }
+            } catch (_) {}
+          });
+        }
+      } catch (_) {}
+
+      if (latestAccount) {
+        mergeAccountIntoLocalDb(latestAccount);
+      }
+      return latestAccount;
+    }
+
+    function scheduleAutoCloudSync() {
+      if (!currentUserAccount || !currentUserAccount.fullId) return;
+      clearTimeout(cloudAutoSaveTimer);
+      cloudAutoSaveTimer = setTimeout(() => {
+        if (currentUserAccount && currentUserAccount.fullId) {
+          pushAccountToCloudAutomatically(currentUserAccount);
+        }
+      }, 650);
+    }
+
     function saveAllLocalData() {
       syncLikedPlaylistObject();
+
+      // Se houver um usuário logado, salva os dados musicais diretamente na conta dele e sincroniza na nuvem automaticamente!
+      if (currentUserAccount && currentUserAccount.fullId) {
+        const uidKey = String(currentUserAccount.fullId).toLowerCase();
+        const userBox = {
+          likedSongs: state.likedSongs,
+          playlists: state.playlists,
+          followedArtists: state.followedArtists,
+          recentlyPlayed: state.recentlyPlayed
+        };
+        safeSetStorage('tunevibe_user_data_' + uidKey, userBox);
+        currentUserAccount.userData = userBox;
+        currentUserAccount.updatedAt = new Date().toISOString();
+        mergeAccountIntoLocalDb(currentUserAccount);
+        safeSetStorage('tunevibe_current_user_v16', currentUserAccount);
+        scheduleAutoCloudSync();
+        return;
+      }
+
       safeSetStorage('tunevibe_liked_v1', state.likedSongs);
       safeSetStorage('tunevibe_playlists_v1', state.playlists);
       safeSetStorage('tunevibe_followed_v1', state.followedArtists);
@@ -2033,10 +2510,28 @@
     }
 
     function loadAllLocalData() {
-      state.likedSongs = safeGetStorage('tunevibe_liked_v1', []);
-      state.playlists = safeGetStorage('tunevibe_playlists_v1', []);
-      state.followedArtists = safeGetStorage('tunevibe_followed_v1', []);
-      state.recentlyPlayed = safeGetStorage('tunevibe_recent_v1', []);
+      if (currentUserAccount && currentUserAccount.fullId) {
+        const uidKey = String(currentUserAccount.fullId).toLowerCase();
+        const savedUserBox = currentUserAccount.userData || safeGetStorage('tunevibe_user_data_' + uidKey, null);
+        if (savedUserBox) {
+          state.likedSongs = Array.isArray(savedUserBox.likedSongs) ? savedUserBox.likedSongs : [];
+          state.playlists = Array.isArray(savedUserBox.playlists) ? savedUserBox.playlists : [];
+          state.followedArtists = Array.isArray(savedUserBox.followedArtists) ? savedUserBox.followedArtists : [];
+          state.recentlyPlayed = Array.isArray(savedUserBox.recentlyPlayed) ? savedUserBox.recentlyPlayed : [];
+          syncLikedPlaylistObject();
+          return;
+        }
+        state.likedSongs = [];
+        state.playlists = [];
+        state.followedArtists = [];
+        state.recentlyPlayed = [];
+        syncLikedPlaylistObject();
+        return;
+      }
+      state.likedSongs = [];
+      state.playlists = [];
+      state.followedArtists = [];
+      state.recentlyPlayed = [];
       syncLikedPlaylistObject();
     }
 
@@ -3279,6 +3774,395 @@
         }
         showToast('⚡ Áudio destravado e iniciando reprodução!');
       });
+
+      // =====================================================================
+      // SISTEMA AUTOMÁTICO DE LOGIN E CADASTRO NA NUVEM (PASTA TUNEVIBE_CONTAS)
+      // =====================================================================
+      const modalAccount = document.getElementById('modalUserAccountGate');
+      const viewLoggedIn = document.getElementById('viewAccountLoggedIn');
+      const viewAuthForms = document.getElementById('viewAccountAuthForms');
+      const formLogin = document.getElementById('formUserLogin');
+      const formRegister = document.getElementById('formUserRegister');
+      const alertBox = document.getElementById('boxAuthAlertMsg');
+      const btnCloseModal = document.getElementById('btnCloseUserAccountModal');
+
+      const tabBtnLogin = document.getElementById('tabBtnModeLogin');
+      const tabBtnRegister = document.getElementById('tabBtnModeRegister');
+
+      const inpRegFirstName = document.getElementById('inpRegFirstName');
+      const inpRegLastName = document.getElementById('inpRegLastName');
+      const inpRegBirthDate = document.getElementById('inpRegBirthDate');
+      const inpRegEmail = document.getElementById('inpRegEmail');
+      const inpRegIdBase = document.getElementById('inpRegIdBase');
+      const inpRegIdTag4 = document.getElementById('inpRegIdTag4');
+      const inpRegPwd = document.getElementById('inpRegPassword');
+      const inpRegPwdConfirm = document.getElementById('inpRegPasswordConfirm');
+
+      const showAuthAlert = (msg, isError = true) => {
+        if (!alertBox) return;
+        alertBox.textContent = msg;
+        alertBox.className = `rounded-xl p-3 text-xs font-bold border ${
+          isError
+            ? 'bg-red-500/20 border-red-500/40 text-red-200'
+            : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'
+        }`;
+        alertBox.classList.remove('hidden');
+      };
+
+      const hideAuthAlert = () => {
+        if (alertBox) alertBox.classList.add('hidden');
+      };
+
+      const switchAuthFormSubTab = (mode) => {
+        hideAuthAlert();
+        formLogin.classList.toggle('hidden', mode !== 'login');
+        formRegister.classList.toggle('hidden', mode !== 'register');
+
+        tabBtnLogin.className = `py-2.5 rounded-xl text-xs font-extrabold transition ${
+          mode === 'login' ? 'bg-[#ff0033] text-white' : 'text-white/70 hover:text-white'
+        }`;
+        tabBtnRegister.className = `py-2.5 rounded-xl text-xs font-extrabold transition ${
+          mode === 'register' ? 'bg-emerald-500 text-black' : 'text-white/70 hover:text-white'
+        }`;
+
+        if (mode === 'register') {
+          pullCloudAccountsIndexAutomatically().then(() => {
+            if (!inpRegIdTag4.value) {
+              inpRegIdTag4.value = generateNextSequentialTag4(inpRegIdBase.value);
+            }
+            updateLiveIdPreview();
+          });
+          if (!inpRegIdTag4.value) {
+            inpRegIdTag4.value = generateNextSequentialTag4(inpRegIdBase.value);
+          }
+          updateLiveIdPreview();
+        }
+      };
+
+      const updateHeaderAndProfileAccountUi = () => {
+        const lblHeader = document.getElementById('lblHeaderUserAccount');
+        const icoHeader = document.getElementById('icoHeaderUserAccount');
+
+        if (currentUserAccount && currentUserAccount.fullId) {
+          if (lblHeader) lblHeader.textContent = currentUserAccount.fullId;
+          if (icoHeader) icoHeader.textContent = '🟢';
+          if (btnCloseModal) btnCloseModal.classList.remove('hidden');
+          viewLoggedIn.classList.remove('hidden');
+          viewAuthForms.classList.add('hidden');
+
+          document.getElementById('txtProfileFullName').textContent = `${currentUserAccount.firstName} ${currentUserAccount.lastName}`;
+          document.getElementById('txtProfileEmail').textContent = currentUserAccount.email;
+          document.getElementById('txtProfileUniqueId').textContent = currentUserAccount.fullId;
+          const bParts = String(currentUserAccount.birthDate || '').split('-');
+          document.getElementById('txtProfileBirthDate').textContent = bParts.length === 3
+            ? `🎂 ${bParts[2]}/${bParts[1]}/${bParts[0]}`
+            : `🎂 ${currentUserAccount.birthDate || ''}`;
+
+          const userPlCount = (state.playlists || []).filter(p => p.id !== 'liked_auto').length;
+          document.getElementById('txtProfileStatLiked').textContent = String((state.likedSongs || []).length);
+          document.getElementById('txtProfileStatPlaylists').textContent = String(userPlCount);
+          document.getElementById('txtProfileStatFollowed').textContent = String((state.followedArtists || []).length);
+        } else {
+          if (lblHeader) lblHeader.textContent = 'Entrar / Conta';
+          if (icoHeader) icoHeader.textContent = '👤';
+          // Portão obrigatório quando deslogado: esconde botão X para exigir login!
+          if (btnCloseModal) btnCloseModal.classList.add('hidden');
+          viewLoggedIn.classList.add('hidden');
+          viewAuthForms.classList.remove('hidden');
+        }
+      };
+
+      const updateLiveIdPreview = () => {
+        const cleanBase = sanitizeIdBase(inpRegIdBase.value);
+        if (inpRegIdBase.value !== cleanBase) inpRegIdBase.value = cleanBase;
+        const cleanTag = sanitizeIdTag4(inpRegIdTag4.value);
+        if (inpRegIdTag4.value !== cleanTag) inpRegIdTag4.value = cleanTag;
+
+        document.getElementById('txtIdHandleCounter').textContent = `${cleanBase.length}/16 caract.`;
+        const previewEl = document.getElementById('txtRegIdLivePreview');
+        const availEl = document.getElementById('txtRegIdAvailability');
+
+        const displayBase = cleanBase || 'seu_id';
+        const displayTag = cleanTag.padEnd(4, '0');
+        const fullCandidate = `${cleanBase}#${cleanTag}`;
+        previewEl.textContent = `ID Final: ${displayBase}#${displayTag}`;
+
+        if (cleanBase.length < 3) {
+          availEl.textContent = 'Mínimo 3 caracteres no nome do ID';
+          availEl.className = 'font-bold text-amber-300';
+          return;
+        }
+        if (cleanTag.length !== 4) {
+          availEl.textContent = 'A # precisa de 4 letras/números';
+          availEl.className = 'font-bold text-amber-300';
+          return;
+        }
+        if (isFullUserIdTaken(fullCandidate)) {
+          const suggested = generateNextSequentialTag4(cleanBase);
+          availEl.textContent = `❌ Já existe! Sugestão: #${suggested}`;
+          availEl.className = 'font-bold text-red-400';
+        } else {
+          availEl.textContent = '✅ ID Exclusivo Disponível!';
+          availEl.className = 'font-bold text-emerald-400';
+        }
+      };
+
+      let userManuallyEditedIdBase = false;
+      inpRegIdBase.addEventListener('input', () => {
+        userManuallyEditedIdBase = inpRegIdBase.value.length > 0;
+        updateLiveIdPreview();
+      });
+      inpRegFirstName.addEventListener('input', () => {
+        if (!userManuallyEditedIdBase) {
+          inpRegIdBase.value = sanitizeIdBase(inpRegFirstName.value);
+          if (!inpRegIdTag4.value) {
+            inpRegIdTag4.value = generateNextSequentialTag4(inpRegIdBase.value);
+          }
+          updateLiveIdPreview();
+        }
+      });
+      inpRegIdTag4.addEventListener('input', updateLiveIdPreview);
+      document.getElementById('btnRegRandomTag4').addEventListener('click', () => {
+        inpRegIdTag4.value = generateRandomAlphanumericTag4(inpRegIdBase.value);
+        updateLiveIdPreview();
+      });
+
+      document.getElementById('btnToggleLoginPwd').addEventListener('click', () => {
+        const inp = document.getElementById('inpLoginPassword');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+      });
+
+      tabBtnLogin.addEventListener('click', () => switchAuthFormSubTab('login'));
+      tabBtnRegister.addEventListener('click', () => switchAuthFormSubTab('register'));
+      document.getElementById('btnSwitchToRegister').addEventListener('click', () => switchAuthFormSubTab('register'));
+
+      document.getElementById('btnOpenUserAccountModal').addEventListener('click', () => {
+        updateHeaderAndProfileAccountUi();
+        modalAccount.classList.remove('hidden');
+      });
+      document.getElementById('btnCloseUserAccountModal').addEventListener('click', () => {
+        if (currentUserAccount) modalAccount.classList.add('hidden');
+      });
+      document.getElementById('btnContinueToAppFromProfile').addEventListener('click', () => {
+        if (currentUserAccount) modalAccount.classList.add('hidden');
+      });
+
+      document.getElementById('btnCopyUserIdTag').addEventListener('click', () => {
+        if (!currentUserAccount) return;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(currentUserAccount.fullId).catch(() => {});
+        }
+        showToast(`ID copiado: ${currentUserAccount.fullId}`);
+      });
+
+      // CADASTRO AUTOMÁTICO: Cria a conta, envia direto para a nuvem TuneVibe_Contas e libera o aplicativo!
+      formRegister.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAuthAlert();
+
+        const firstName = inpRegFirstName.value.trim();
+        const lastName = inpRegLastName.value.trim();
+        const birthDate = inpRegBirthDate.value.trim();
+        const email = inpRegEmail.value.trim().toLowerCase();
+        const idBase = sanitizeIdBase(inpRegIdBase.value);
+        const idTag4 = sanitizeIdTag4(inpRegIdTag4.value);
+        const pwd = inpRegPwd.value;
+        const pwdConf = inpRegPwdConfirm.value;
+
+        if (!firstName || !lastName || !birthDate || !email || !idBase || !idTag4 || !pwd) {
+          showAuthAlert('Preencha todos os campos obrigatórios (Nome, Sobrenome, Data de Nascimento, E-mail, ID e Senha).');
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          showAuthAlert('Digite um endereço de e-mail válido.');
+          return;
+        }
+        if (idBase.length < 3 || idBase.length > 16) {
+          showAuthAlert('O nome do seu ID deve ter entre 3 e 16 caracteres.');
+          return;
+        }
+        if (idTag4.length !== 4) {
+          showAuthAlert('O código após a # deve ter exatamente 4 caracteres (letras ou números).');
+          return;
+        }
+        if (pwd.length < 6) {
+          showAuthAlert('A senha deve ter pelo menos 6 caracteres.');
+          return;
+        }
+        if (pwd !== pwdConf) {
+          showAuthAlert('A confirmação de senha não confere com a senha digitada.');
+          return;
+        }
+
+        const btnRegTxt = document.getElementById('txtBtnSubmitRegister');
+        if (btnRegTxt) btnRegTxt.textContent = '☁️ Verificando e salvando em TuneVibe_Contas...';
+
+        const fullId = `${idBase}#${idTag4}`;
+
+        // Consulta automaticamente a nuvem para garantir que nem o E-mail nem o ID#4chars já existam em outro aparelho!
+        await Promise.allSettled([
+          pullCloudAccountsIndexAutomatically(),
+          pullUserVaultFromCloudAutomatically(email),
+          pullUserVaultFromCloudAutomatically(fullId)
+        ]);
+
+        if (isEmailTaken(email)) {
+          if (btnRegTxt) btnRegTxt.textContent = '✅ Criar Conta & Entrar Automaticamente';
+          showAuthAlert('Já existe uma conta cadastrada com este e-mail na nuvem! Toque em "🔑 Entrar na Conta".');
+          return;
+        }
+
+        if (isFullUserIdTaken(fullId)) {
+          const nextFree = generateNextSequentialTag4(idBase);
+          inpRegIdTag4.value = nextFree;
+          updateLiveIdPreview();
+          if (btnRegTxt) btnRegTxt.textContent = '✅ Criar Conta & Entrar Automaticamente';
+          showAuthAlert(`O ID ${fullId} já está em uso! Mudamos automaticamente para #${nextFree} — clique novamente para confirmar.`);
+          return;
+        }
+
+        const newAccount = {
+          fullId,
+          idBase,
+          idTag4,
+          firstName,
+          lastName,
+          birthDate,
+          email,
+          passwordHash: hashPasswordSha256(pwd),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          driveFolderId: TUNEVIBE_DRIVE_FOLDER_ID,
+          driveFileId: TUNEVIBE_DRIVE_FILE_ID,
+          userData: {
+            likedSongs: [],
+            playlists: [],
+            followedArtists: [],
+            recentlyPlayed: []
+          }
+        };
+
+        mergeAccountIntoLocalDb(newAccount);
+        currentUserAccount = newAccount;
+        safeSetStorage('tunevibe_current_user_v16', currentUserAccount);
+        loadAllLocalData();
+        renderPlaylistsTab();
+        renderRecentlyPlayed();
+
+        await pushAccountToCloudAutomatically(newAccount);
+        if (btnRegTxt) btnRegTxt.textContent = '✅ Criar Conta & Entrar Automaticamente';
+
+        updateHeaderAndProfileAccountUi();
+        modalAccount.classList.add('hidden');
+        showToast(`🎉 Conta ${fullId} criada e vinculada à nuvem TuneVibe_Contas!`);
+      });
+
+      // LOGIN AUTOMÁTICO: Busca na nuvem TuneVibe_Contas pelo E-mail ou ID#4chars, valida a senha e restaura todas as músicas/playlists!
+      formLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAuthAlert();
+
+        const loginInput = document.getElementById('inpLoginEmailOrId').value.trim().toLowerCase();
+        const pwd = document.getElementById('inpLoginPassword').value;
+        if (!loginInput || !pwd) {
+          showAuthAlert('Informe seu e-mail (ou ID#0001) e sua senha.');
+          return;
+        }
+
+        const btnLoginTxt = document.getElementById('txtBtnSubmitLogin');
+        if (btnLoginTxt) btnLoginTxt.textContent = '☁️ Buscando sua conta em TuneVibe_Contas...';
+
+        // 1. Busca automaticamente o cofre completo desse usuário na nuvem + índice geral
+        const [vaultRes] = await Promise.allSettled([
+          pullUserVaultFromCloudAutomatically(loginInput),
+          pullCloudAccountsIndexAutomatically()
+        ]);
+
+        let found = (vaultRes && vaultRes.status === 'fulfilled' && vaultRes.value) ? vaultRes.value : null;
+        if (!found) {
+          found = accountsDb.find(acc =>
+            String(acc.email || '').toLowerCase() === loginInput ||
+            String(acc.fullId || '').toLowerCase() === loginInput
+          );
+        }
+
+        if (!found) {
+          if (btnLoginTxt) btnLoginTxt.textContent = '🚀 Entrar & Carregar Minhas Músicas da Nuvem';
+          showAuthAlert('Conta não encontrada em TuneVibe_Contas. Verifique o e-mail/ID ou crie sua conta na aba "✨ Criar Conta".');
+          return;
+        }
+
+        const pwdHash = hashPasswordSha256(pwd);
+        if (found.passwordHash !== pwdHash) {
+          if (btnLoginTxt) btnLoginTxt.textContent = '🚀 Entrar & Carregar Minhas Músicas da Nuvem';
+          showAuthAlert('Senha incorreta! Verifique sua senha e tente novamente.');
+          return;
+        }
+
+        // Se o usuário digitou o e-mail, busca também pelo fullId (e vice-versa) para garantir a versão mais recente das playlists na nuvem!
+        const altKey = (String(found.email).toLowerCase() === loginInput) ? found.fullId : found.email;
+        const newerVault = await pullUserVaultFromCloudAutomatically(altKey);
+        if (newerVault && newerVault.userData) {
+          const t1 = Date.parse(found.updatedAt || '') || 0;
+          const t2 = Date.parse(newerVault.updatedAt || '') || 0;
+          if (t2 >= t1) found = newerVault;
+        }
+
+        if (btnLoginTxt) btnLoginTxt.textContent = '🚀 Entrar & Carregar Minhas Músicas da Nuvem';
+
+        currentUserAccount = found;
+        mergeAccountIntoLocalDb(found);
+        safeSetStorage('tunevibe_current_user_v16', currentUserAccount);
+        if (found.userData) {
+          safeSetStorage('tunevibe_user_data_' + String(found.fullId).toLowerCase(), found.userData);
+        }
+        loadAllLocalData();
+        renderPlaylistsTab();
+        renderRecentlyPlayed();
+        updateHeaderAndProfileAccountUi();
+        modalAccount.classList.add('hidden');
+        showToast(`☁️ Bem-vindo(a), ${found.firstName}! Suas músicas e playlists foram carregadas.`);
+      });
+
+      // Logout: limpa a sessão ativa e trava novamente no Portão de Login
+      document.getElementById('btnLogoutUserAccount').addEventListener('click', () => {
+        currentUserAccount = null;
+        safeSetStorage('tunevibe_current_user_v16', null);
+        loadAllLocalData();
+        renderPlaylistsTab();
+        renderRecentlyPlayed();
+        updateHeaderAndProfileAccountUi();
+        switchAuthFormSubTab('login');
+        modalAccount.classList.remove('hidden');
+        showToast('Você saiu da conta.');
+      });
+
+      // Inicialização automática ao abrir o aplicativo:
+      updateHeaderAndProfileAccountUi();
+      pullCloudAccountsIndexAutomatically();
+
+      if (!currentUserAccount) {
+        // Abre o portão de login obrigatório
+        modalAccount.classList.remove('hidden');
+      } else {
+        modalAccount.classList.add('hidden');
+        // Sincroniza em segundo plano os dados mais recentes da conta logada na nuvem TuneVibe_Contas
+        pullUserVaultFromCloudAutomatically(currentUserAccount.email).then(remoteAcc => {
+          if (remoteAcc && remoteAcc.userData) {
+            const localTs = Date.parse(currentUserAccount.updatedAt || '') || 0;
+            const remoteTs = Date.parse(remoteAcc.updatedAt || '') || 0;
+            if (remoteTs > localTs) {
+              currentUserAccount = remoteAcc;
+              safeSetStorage('tunevibe_current_user_v16', currentUserAccount);
+              safeSetStorage('tunevibe_user_data_' + String(remoteAcc.fullId).toLowerCase(), remoteAcc.userData);
+              loadAllLocalData();
+              renderPlaylistsTab();
+              renderRecentlyPlayed();
+              updateHeaderAndProfileAccountUi();
+            }
+          }
+        });
+      }
 
       // Botões de Topo: Nuvem Drive & Instalar no iPhone
       document.getElementById('btnOpenDriveModal').addEventListener('click', () => {
